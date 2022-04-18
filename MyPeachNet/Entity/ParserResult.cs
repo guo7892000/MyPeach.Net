@@ -38,14 +38,14 @@ namespace org.breezee.MyPeachNet
         /**
          * 有效条件集合
          */
-        public IDictionary<string, SqlKeyValueEntity> MapQuery = new Dictionary<string, SqlKeyValueEntity>();
+        public IDictionary<string, SqlKeyValueEntity> DicQuery = new Dictionary<string, SqlKeyValueEntity>();
 
         public static ParserResult success(string msg, string sSql, IDictionary<string, SqlKeyValueEntity> queryMap)
         {
             ParserResult result = new ParserResult();
             result.Code = "0";
             result.Message = msg;
-            result.MapQuery = queryMap;
+            result.DicQuery = queryMap;
             return result;
         }
 

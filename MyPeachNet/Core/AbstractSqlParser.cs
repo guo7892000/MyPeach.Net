@@ -133,7 +133,7 @@ namespace org.breezee.MyPeachNet
             {
                 result = ParserResult.success(sFinalSql, mapSqlKeyValid);
                 result.Sql = sFinalSql;
-                result.MapQuery = mapSqlKeyValid;
+                result.DicQuery = mapSqlKeyValid;
             }
             return result;
         }
