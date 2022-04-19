@@ -16,7 +16,7 @@ namespace org.breezee.MyPeachNet
      */
     public class SqlParsers
     {
-        private MyPeachNetProperties properties;
+        public MyPeachNetProperties properties;
 
         //构造函数
         public SqlParsers(MyPeachNetProperties prop)

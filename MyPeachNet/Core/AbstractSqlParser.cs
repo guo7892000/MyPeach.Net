@@ -331,9 +331,10 @@ namespace org.breezee.MyPeachNet
                 string sEnd = sSql.Substring(m.Index + m.Value.Length);
                 //3、子查询处理
                 string sChildQuery = childQueryConvert(sLastAndOr + sPre, sEnd, sSource, allKeyNull);
+                sb.Append(sChildQuery);//加上子查询语句
                 if (allKeyNull || ToolHelper.IsNotNull(sChildQuery))
                 {
-                    return "";//如果全部参数为空，或者子查询已处理，直接返回
+                    return sb.ToString();//如果全部参数为空，或者子查询已处理，直接返回
                 }
                 //4、有键值传入，并且非子查询，做AND或OR正则匹配分拆字符
                 sb.Append(sLastAndOr + sSql.Replace(m.Value, ""));//因为不能移除"()"，所以这里先拼接收"AND"或"OR"
