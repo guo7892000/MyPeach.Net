@@ -61,13 +61,5 @@ showMsg(sqlParsers.parse(SqlTypeEnum.SELECT_WITH_AS, sWithSelect, dicQuery));
 static void showMsg(ParserResult result)
 {
     if (result == null) return;
-    if(result.Code.Equals("1"))
-    {
-        Console.WriteLine(result.Message);
-    }
-    else
-    {
-        Console.WriteLine(result.Sql);
-    }
-
+    Console.WriteLine(result.Code.Equals("1") ? result.Message : result.Sql);
 }
