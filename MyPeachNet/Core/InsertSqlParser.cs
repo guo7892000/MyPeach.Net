@@ -108,7 +108,7 @@ namespace org.breezee.MyPeachNet
             for (int i = 0; i < colArray.Length; i++)
             {
                 string sLastAndOr = i == 0 ? "" : ",";
-                string colString = parenthesesKeyConvert(colArray[i], sLastAndOr);
+                string colString = complexParenthesesKeyConvert(colArray[i], sLastAndOr);
 
                 if (sqlTypeEnum == SqlTypeEnum.INSERT_SELECT && ToolHelper.IsNull(colString))
                 {

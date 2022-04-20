@@ -15,7 +15,7 @@ string sDelete = File.ReadAllText(Path.Combine(sPath, "04_Delete.txt"));
 string sInsertSelect = File.ReadAllText(Path.Combine(sPath, "05_InsertSelect.txt"));
 string sWithSelect = File.ReadAllText(Path.Combine(sPath, "06_OracleWithSelect.txt"));
 MyPeachNetProperties pop = new MyPeachNetProperties();
-pop.TargetSqlParamTypeEnum = TargetSqlParamTypeEnum.DIRECT_RUN;
+//pop.TargetSqlParamTypeEnum = TargetSqlParamTypeEnum.DIRECT_RUN;
 SqlParsers sqlParsers = new SqlParsers(pop);
 
 IDictionary<String, Object> dicQuery = new Dictionary<String, Object>();

@@ -57,7 +57,7 @@ namespace org.breezee.MyPeachNet
                     continue;
                 }
 
-                sb.Append(parenthesesKeyConvert(sComma + col, ""));
+                sb.Append(complexParenthesesKeyConvert(sComma + col, ""));
 
                 if (string.IsNullOrEmpty(sComma))
                 {

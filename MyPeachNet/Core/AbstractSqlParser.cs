@@ -100,6 +100,11 @@ namespace org.breezee.MyPeachNet
                 }
             }
 
+            if (mapSqlKey.Count == 0)
+            {
+                return ParserResult.fail("SQL中没有发现键，当前键配置样式为：" + keyPrefix + "key" + keySuffix + "，请修改配置或SQL。已退出！", mapError);
+            }
+
             if (mapError.Count > 0)
             {
                 return ParserResult.fail("部分非空键（" + string.Join(",", mapError.Keys) + "）没有传入值，已退出！", mapError);
@@ -267,7 +272,7 @@ namespace org.breezee.MyPeachNet
                 if (hasKey(oneSql) || parenthesesRounFlag)
                 {
                     //2.1、当键存在，或存在：##序号##时，调用括号键转换处理方法
-                    sb.Append(parenthesesKeyConvert(oneSql, sBeforeAndOr));
+                    sb.Append(complexParenthesesKeyConvert(oneSql, sBeforeAndOr));
                 }
                 else
                 {
@@ -278,7 +283,7 @@ namespace org.breezee.MyPeachNet
                 iStart = m.Index + m.Value.Length;
             }
             //最后一个AND或OR之后的的SQL字符串处理，也是调用括号键转换处理方法
-            sb.Append(parenthesesKeyConvert(sCond.Substring(iStart), sBeforeAndOr));
+            sb.Append(complexParenthesesKeyConvert(sCond.Substring(iStart), sBeforeAndOr));
 
             return sb.ToString();
         }
@@ -289,15 +294,15 @@ namespace org.breezee.MyPeachNet
          * @param sSql 包含##序号##的SQL
          * @param sLastAndOr 上次处理中最后的那个AND或OR字符
          */
-        protected string parenthesesKeyConvert(string sSql, string sLastAndOr)
+        protected string complexParenthesesKeyConvert(string sSql, string sLastAndOr)
         {
             StringBuilder sb = new StringBuilder();
             //1、分析是否有包含 ##序号## 正则式的字符
             MatchCollection mc = ToolHelper.Matches(parenthesesRoundPattern, sSql);
             if (mc.Count == 0)
             {
-                //没找到时，直接调用单个键转换
-                return singleKeyConvert(sLastAndOr + sSql);//退出本次处理
+                //没有双括号，但可能存在单括号，如是要修改为1=1或AND 1=1 的形式
+                return parenthesesConvert(sSql, sLastAndOr);//退出本次处理
             }
             foreach (Match m in mc)
             {
@@ -330,7 +335,7 @@ namespace org.breezee.MyPeachNet
                 string sPre = sSql.SubStartEnd(0, m.Index);
                 string sEnd = sSql.Substring(m.Index + m.Value.Length);
                 //3、子查询处理
-                string sChildQuery = childQueryConvert(sLastAndOr + sPre, sEnd, sSource, allKeyNull);
+                string sChildQuery = childQueryConvert(sLastAndOr + sPre, sEnd, sSource);
                 sb.Append(sChildQuery);//加上子查询语句
                 if (allKeyNull || ToolHelper.IsNotNull(sChildQuery))
                 {
@@ -342,21 +347,19 @@ namespace org.breezee.MyPeachNet
                 // 注：此处虽然与【andOrConditionConvert】有点类似，但有不同，不能将以下代码替换为andOrConditionConvert方法调用
                 int iStart = 0;
                 string beforeAndOr = "";
-                bool bFirst = true;
                 MatchCollection mc2 = ToolHelper.Matches(StaticConstants.andOrPatter, sSource);
                 foreach (Match m2 in mc2)
                 {
                     //4.1 存在AND或OR
                     string sOne = sSource.SubStartEnd(iStart, m2.Index).Trim();
                     //复杂的包含左右括号的SQL段转换（非子查询）
-                    sb.Append(conplexParenthesesConvert(sOne, beforeAndOr, bFirst));
+                    sb.Append(parenthesesConvert(sOne, beforeAndOr));
                     iStart = m2.Index + m2.Value.Length;
                     beforeAndOr = m2.Value;
-                    bFirst = false;
                 }
                     
                 //4.2 最后一个AND或OR之后的的SQL字符串处理，也是调用【复杂的包含左右括号的SQL段转换（非子查询）】方法
-                sb.Append(conplexParenthesesConvert(beforeAndOr + sSource.Substring(iStart), "", bFirst));
+                sb.Append(parenthesesConvert(sSource.Substring(iStart), beforeAndOr));
             }
 
             return sb.ToString();
@@ -370,7 +373,7 @@ namespace org.breezee.MyPeachNet
          * @param allParamEmpty 所有键是否为空
          * @return
          */
-        private string childQueryConvert(string sPre, string sEnd, string sSource, bool allParamEmpty)
+        private string childQueryConvert(string sPre, string sEnd, string sSource)
         {
             StringBuilder sb = new StringBuilder();
             //1、判断是否有子查询
@@ -418,19 +421,19 @@ namespace org.breezee.MyPeachNet
             }
 
             return sb.ToString(); //返回子查询已处理
-        }       
+        }
 
         /**
-         * 复杂的包含左右括号的SQL段转换（非子查询），例如( ( CREATOR = '#CREATOR#' OR CREATOR_ID = #CREATOR_ID# ) AND TFLG = '#TFLG#')
-         * @param sOne 只有一个key的字符（即已经过AND或OR的正则表达式匹配后分拆出来的部分字符）
-         * @param beforeAndOr 前一个拼接的AND或OR字符
-         * @param bFirst 是否第一次接拼
+         * 括号的SQL段转换(注：已经过AND或OR拆分，只含一个键)
+         *  例如( ( CREATOR = '#CREATOR#' OR CREATOR_ID = #CREATOR_ID# ) AND TFLG = '#TFLG#')
+         * @param sSql 只有一个key的字符（即已经过AND或OR的正则表达式匹配后分拆出来的部分字符）
+         * @param sLastAndOr 前一个拼接的AND或OR字符
          */
-        private string conplexParenthesesConvert(string sOne, string beforeAndOr, bool bFirst)
+        private String parenthesesConvert(String sSql, String sLastAndOr)
         {
-            StringBuilder sb = new StringBuilder();
             //1、剔除开头的一个或多个左括号，并且把这些左括号记录到变量中，方便后面拼接
-            string sStartsParentheses = "";
+            String sOne = sSql;
+            String sStartsParentheses = "";
             while (sOne.StartsWith("("))
             { //remvoe the start position of string "("
                 sStartsParentheses += "(";
@@ -438,7 +441,7 @@ namespace org.breezee.MyPeachNet
             }
 
             //2、剔除结尾处的一个或多个括号，并将它记录到变量中，方便后面拼接
-            string sEndRight = "";
+            String sEndRight = "";
             int leftCount = sOne.Length - sOne.Replace("(", "").Length;//left Parentheses count
             long rightCount = sOne.Length - sOne.Replace(")", "").Length;//right Parentheses count
 
@@ -452,54 +455,24 @@ namespace org.breezee.MyPeachNet
                 }
             }
 
-            //3、判断键是否有传值
-            string keyString = getFirstKeyString(sOne);
-            string keyName = ToolHelper.getKeyName(keyString, myPeachProp);//根据键字符得到键名
-            if (!mapSqlKeyValid.ContainsKey(keyName))
+            String sParmFinal = singleKeyConvert(sOne);//有括号也一并去掉了
+            if (ToolHelper.IsNull(sParmFinal))
             {
-                //3.1 没有传值
-                string sCon = "";//
-                if (bFirst)
+                //没有键值传入
+                if (ToolHelper.IsNotNull(sStartsParentheses) || ToolHelper.IsNotNull(sEndRight))
                 {
-                    //3.1.1 第一次拼妆：当没有左括号时，直接取 1=1 ，否则在 1=1 前面还要加上左括号变量(包含一个或多个左括号)
-                    sCon = string.IsNullOrEmpty(sStartsParentheses) ? " 1=1 " : " " + sStartsParentheses + " 1=1 ";//
+                    //有左或右括号时，就替换为AND 1=1
+                    sLastAndOr = sLastAndOr.Replace("OR", "AND");
+                    return sLastAndOr + sStartsParentheses + " 1=1 " + sEndRight;
                 }
-                else
-                {
-                    //3.1.2 非第一次拼妆：当没有左括号时，直接取 AND 1=1 ，否则在AND 与 1=1 之间要加上左括号变量(包含一个或多个左括号)
-                    //注：对于没有键值传进来的参数会统一修改为：AND 1=1，即使之前为OR连接条件。因为OR 1=1会查询全部数据，这样就会导致很多错误的数据被更新！！这里很好避免了这个问题^_^
-                    sCon = string.IsNullOrEmpty(sStartsParentheses) ? " AND 1=1 " : " AND " + sStartsParentheses + " 1=1 ";//
-                }
-                sb.Append(sCon + sEndRight);
+                return "";//没有括号时返回空，即可以直接去掉
             }
             else
             {
-                //3.2 有传值
-                SqlKeyValueEntity entity = mapSqlKeyValid[keyName];
-                string sList = entity.KeyMoreInfo.StringList;
-                string sKeyValue;
-                if (ToolHelper.IsNotNull(sList))
-                {
-                    //3.2.1、替换IN的字符串
-                    sKeyValue = sOne.Replace(keyString, sList);
-                }
-                else if (myPeachProp.TargetSqlParamTypeEnum == TargetSqlParamTypeEnum.Param)
-                {
-                    //3.2.2、得到参数化的SQL语句
-                    sKeyValue = sOne.Replace(keyString, ToolHelper.getTargetParamName(keyName, myPeachProp));
-                }
-                else
-                {
-                    //3.2.3、得到替换键后只有值的SQL语句
-                    string sValue = entity.ReplaceKeyWithValue.ToString();
-                    sKeyValue = sOne.Replace(keyString, sValue);
-                }
-                string sAndOr = beforeAndOr + sStartsParentheses + sKeyValue + sEndRight;
-                sb.Append(sAndOr);
+                return sLastAndOr + sStartsParentheses + sParmFinal + sEndRight;//有键值传入
             }
 
-            return sb.ToString();
-        }
+        }       
 
         /****
          * 单个键SQL转换：一般在对AND（OR）分隔后调用本方法
@@ -627,7 +600,7 @@ namespace org.breezee.MyPeachNet
                     continue;
                 }
                 //括号转换处理
-                string colString = parenthesesKeyConvert(sComma + col, "");
+                string colString = complexParenthesesKeyConvert(sComma + col, "");
                 sb.Append(colString);
                 //第一个有效元素后的元素前要加逗号：查询的字段应该是不能去掉的，回头这再看看？？？
                 if (string.IsNullOrEmpty(sComma))
