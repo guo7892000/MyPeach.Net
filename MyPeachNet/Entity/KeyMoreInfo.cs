@@ -21,8 +21,9 @@ namespace org.breezee.MyPeachNet
          * 可空（默认是）
          */
         public bool Nullable { get; set; } = true;
-        public string StringList { get; set; } = string.Empty;
+        public string InString { get; set; } = string.Empty;
 
+        public bool MustValueReplace { get; set; } = false;
         /**
          * 构建【键更多信息】对象
          * @param sKeyMore 键更多信息字符，例如：CITY_NAME:N
@@ -57,6 +58,36 @@ namespace org.breezee.MyPeachNet
                     string sOneItem = arrChild[j];
                 }
             }
+
+            for (int i = 0; i < arr.Length; i++)
+            {
+                if (i == 0) continue;
+                String sOne = arr[i];
+                if (string.IsNullOrEmpty(sOne)) continue;
+
+                if ("N".Equals(sOne))
+                {
+                    moreInfo.Nullable = false ;//非空
+                }
+                else if ("R".Equals(sOne))
+                {
+                    moreInfo.MustValueReplace = true;//必须替换
+                }
+                else if ("LS".Equals(sOne))
+                {
+                    listConvert(objValue, moreInfo, true);
+                }
+                else if ("LI".Equals(sOne))
+                {
+                    listConvert(objValue, moreInfo, false);
+                }
+
+                String[] arrChild = sOne.Split("-");
+                for (int j = 0; j < arrChild.Length; j++)
+                {
+                    String sOneItem = arrChild[j];
+                }
+            }
             return moreInfo;
         }
 
@@ -74,27 +105,46 @@ namespace org.breezee.MyPeachNet
             //int数组或集合
             if (objValue is int[])
             {
-                moreInfo.StringList = sPreEnd + string.Join(sCenter, (string[])objValue) + sPreEnd;
+                moreInfo.InString = sPreEnd + string.Join(sCenter, (string[])objValue) + sPreEnd;
                 return;
             }
             else if (objValue is List<int>)
             {
                 List<int> list = ((List<int>)objValue);
-                moreInfo.StringList = sPreEnd + string.Join(sCenter, list) + sPreEnd;
+                moreInfo.InString = sPreEnd + string.Join(sCenter, list) + sPreEnd;
                 return;
             }
             else if (objValue is string[])
             {
-                moreInfo.StringList = sPreEnd + string.Join(sCenter, (string[])objValue) + sPreEnd;
+                moreInfo.InString = sPreEnd + string.Join(sCenter, (string[])objValue) + sPreEnd;
                 return;
             }
             else if (objValue is List<string>)
             {
                 List<string> list = ((List<string>)objValue);
-                moreInfo.StringList = sPreEnd + string.Join(sCenter, list) + sPreEnd;
+                moreInfo.InString = sPreEnd + string.Join(sCenter, list) + sPreEnd;
                 return;
             }
 
         }
+
+        #region 为了能直接复制过来的Java代码而增加的方法
+        public string getInString()
+        {
+            return InString;
+        }
+
+        public bool isMustValueReplace()
+        {
+            return MustValueReplace;
+        }
+
+        public bool isNullable()
+        {
+            return Nullable;
+        }
+
+        #endregion
+
     }
 }

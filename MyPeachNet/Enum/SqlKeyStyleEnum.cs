@@ -19,10 +19,10 @@ namespace org.breezee.MyPeachNet
         /// <summary>
         /// 前后#号方式（默认），例如：#KEY#
         /// </summary>
-        POUND_SIGN_AROUND,
+        POUND_SIGN_AROUND = 1,
          /// <summary>
          /// 使用#{}方式，即使用MyBatis表示键的方式，例如：#{KEY}
          /// </summary>
-        POUND_SIGN_BRACKETS,
+        POUND_SIGN_BRACKETS = 2,
     }
 }

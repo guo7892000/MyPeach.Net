@@ -17,8 +17,6 @@ namespace org.breezee.MyPeachNet
      */
     public class DeleteSqlParser : AbstractSqlParser
     {
-        string sDeletePattern = "^DELETE\\s+FROM\\s+\\S+\\s+"; //正则式:DELETE FROM TABALE_NAME
-
         public DeleteSqlParser(MyPeachNetProperties properties) : base(properties)
         {
             sqlTypeEnum = SqlTypeEnum.DELETE;
@@ -27,16 +25,27 @@ namespace org.breezee.MyPeachNet
         protected override string headSqlConvert(string sSql)
         {
             StringBuilder sb = new StringBuilder();
-            MatchCollection mc = ToolHelper.Matches(sDeletePattern,sSql);
-            foreach (Match m in mc)
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.deletePattern);//抽取出INSERT INTO TABLE_NAME(部分
+            while (mc.find())
             {
-                sb.Append(m.Value);//不变的INSERT INTO TABLE_NAME(部分先加入
-                //FROM部分SQL处理
-                sb.Append(fromSqlConvert(sSql.Substring(m.Index+m.Value.Length)));
+                sb.append(mc.group());//不变的INSERT INTO TABLE_NAME(部分先加入
+                                      //FROM部分SQL处理
+                string sWhereSql = fromWhereSqlConvert(sSql.substring(mc.end()), false);
+                //如果禁用全表更新，并且条件为空，则抛错！
+                if (ToolHelper.IsNull(sWhereSql) && myPeachProp.isForbidAllTableUpdateOrDelete())
+                {
+                    mapError.put("出现全表删除，已停止", "删除语句不能没有条件，那样会清除整张表数据！");//错误列表
+                }
+                sb.append(sWhereSql);
             }
-            return sb.ToString();
+            return sb.toString();
         }
 
+        /**
+         * FROM前段SQL处理
+         * @param sSql
+         * @return
+         */
         protected override string beforeFromConvert(string sSql)
         {
             return "";

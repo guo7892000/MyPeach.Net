@@ -8,6 +8,44 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Sql\Delete\01_Delete.txt" />
+    <None Remove="Sql\Insert\01_Insert.txt" />
+    <None Remove="Sql\Insert\02_InsertSelect.txt" />
+    <None Remove="Sql\Select2\01_Select.txt" />
+    <None Remove="Sql\Select\01_Select.txt" />
+    <None Remove="Sql\Select\02_WithSelect.txt" />
+    <None Remove="Sql\Select\03_SelectUnion.txt" />
+    <None Remove="Sql\Update\01_Update.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Sql\Delete\01_Delete.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sql\Insert\01_Insert.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sql\Insert\02_InsertSelect.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sql\Select2\01_Select.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sql\Select\01_Select.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sql\Select\02_WithSelect.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sql\Select\03_SelectUnion.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sql\Update\01_Update.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MyPeachNet\MyPeachNet.csproj" />
   </ItemGroup>
 

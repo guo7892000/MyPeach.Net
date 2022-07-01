@@ -19,9 +19,6 @@ namespace org.breezee.MyPeachNet
      */
     public class InsertSqlParser : AbstractSqlParser
     {
-        string sValuesPattern = "\\)\\s*VALUES\\s*\\(\\s*"; //正则式：)VALUES(
-        string sInsertIntoPattern = "^INSERT\\s+INTO\\s+\\S+\\s*\\(\\s*";//正则式：INSERT INTO TABLE_NAME(
-
         public InsertSqlParser(MyPeachNetProperties properties) : base(properties)
         {
             sqlTypeEnum = SqlTypeEnum.INSERT_VALUES;
@@ -30,81 +27,33 @@ namespace org.breezee.MyPeachNet
         protected override string headSqlConvert(string sSql)
         {
             StringBuilder sbHead = new StringBuilder();
-            StringBuilder sbTail = new StringBuilder();
-            //1、抽取出INSERT INTO TABLE_NAME(部分
-            MatchCollection mc = ToolHelper.Matches(sInsertIntoPattern,sSql);
-            foreach (Match m in mc)
+
+            sSql = insertValueConvert(sSql, sbHead);
+            if (ToolHelper.IsNull(sSql))
             {
-                sbHead.Append(m.Value);//不变的INSERT INTO TABLE_NAME(部分先加入
-                sSql = sSql.Substring(m.Index + m.Value.Length).Trim();
+                return sbHead.toString();//当是INSERT INTO...VALUES...方式，则方法会返回空
             }
 
-
-            //2、判断是否insert into ... values形式
-            bool insertValuesFlag = false;
-            string sInsert = "";
-            string sPara = "";
-            mc = ToolHelper.Matches(sValuesPattern,sSql);
-            foreach (Match m in mc)
+            //4、INSERT INTO TABLE_NAME 。。 SELECT形式
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
+            while (mc.find())
             {
-                sInsert = sSql.Substring(0, m.Index).Trim();
-                sPara = sSql.Substring(m.Index + m.Value.Length).Trim();
-                sbTail.Append(m.Value);//不变的)VALUES(部分先加入
-                insertValuesFlag = true;
+                sqlTypeEnum = SqlTypeEnum.INSERT_SELECT;
+                string sInsert = sSql.substring(0, mc.start()) + mc.group();
+                sInsert = complexParenthesesKeyConvert(sInsert, "");
+                sbHead.append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
+                sSql = sSql.substring(mc.end()).trim();
+                //FROM段处理
+                string sFinalSql = fromWhereSqlConvert(sSql, false);
+                sbHead.append(sFinalSql);
             }
-
-            if (insertValuesFlag)
-            {
-                //3、 insert into ... values形式
-                string[] colArray = sInsert.Split(",");
-                string[] paramArray = sPara.Split(",");
-
-                int iGood = 0;
-                for (int i = 0; i < colArray.Length; i++)
-                {
-                    string sParamSql = singleKeyConvert(paramArray[i]);
-                    if (ToolHelper.IsNotNull(sParamSql))
-                    {
-                        if (iGood == 0)
-                        {
-                            sbHead.Append(colArray[i]);
-                            sbTail.Append(sParamSql);
-                        }
-                        else
-                        {
-                            sbHead.Append("," + colArray[i]);
-                            sbTail.Append("," + sParamSql);
-                        }
-                        iGood++;
-                    }
-                }
-
-                if (!sbTail.ToString().EndsWith(")"))
-                {
-                    sbTail.Append(")");
-                }
-            }
-            else
-            {
-                //4、INSERT INTO TABLE_NAME 。。 SELECT形式
-                mc = ToolHelper.Matches("\\s*\\)\\s+SELECT\\s+", sSql);
-                foreach (Match m in mc)
-                {
-                    sqlTypeEnum = SqlTypeEnum.INSERT_SELECT;
-                    sInsert = sSql.SubStartEnd(0, m.Index) + m.Value;
-                    sbHead.Append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
-                    sSql = sSql.Substring(m.Index + m.Value.Length).Trim();
-                    //FROM段处理
-                    sbHead.Append(fromSqlConvert(sSql));
-                }
-            }
-            return sbHead.ToString() + sbTail.ToString();
+            return sbHead.toString();
         }
 
         protected override string beforeFromConvert(string sSql)
         {
             StringBuilder sbHead = new StringBuilder();
-            string[] colArray = sSql.Split(",");
+            string[] colArray = sSql.split(",");
             for (int i = 0; i < colArray.Length; i++)
             {
                 string sLastAndOr = i == 0 ? "" : ",";
@@ -113,11 +62,77 @@ namespace org.breezee.MyPeachNet
                 if (sqlTypeEnum == SqlTypeEnum.INSERT_SELECT && ToolHelper.IsNull(colString))
                 {
                     string sKeyName = getFirstKeyName(colArray[i]);
-                    mapError[sKeyName] = "SELECT中的查询项" + sKeyName + "，其值必须转入，不能为空！";
+                    mapError.put(sKeyName, "SELECT中的查询项" + sKeyName + "，其值必须转入，不能为空！");
                 }
-                sbHead.Append(colString);
+                sbHead.append(colString);
             }
-            return sbHead.ToString();
+            return sbHead.toString();
+        }
+
+        /**
+         * INSERT INTO及VALUES处理
+         * @param sSql
+         * @param sb
+         * @return
+         */
+        private string insertValueConvert(String sSql, StringBuilder sb)
+        {
+            StringBuilder sbHead = new StringBuilder();
+            StringBuilder sbTail = new StringBuilder();
+            //1、抽取出INSERT INTO TABLE_NAME部分
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.insertIntoPattern);
+            if (mc.find())
+            {
+                sbHead.append(mc.group());//加入INSERT INTO TABLE_NAME
+                sSql = sSql.substring(mc.end()).trim();
+            }
+
+            //2、判断是否insert into ... values形式
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.valuesPattern);//先根据VALUES关键字将字符分隔为两部分
+            string sInsert = "";
+            string sPara = "";
+            if (mc.find())
+            {
+                string sInsertKey = sSql.substring(0, mc.start()).trim();
+                string sParaKey = sSql.substring(mc.end()).trim();
+
+                sInsert = ToolHelper.removeBeginEndParentheses(mapsParentheses.get(sInsertKey));
+                sPara = ToolHelper.removeBeginEndParentheses(mapsParentheses.get(sParaKey));
+                sPara = generateParenthesesKey(sPara);//针对有括号的部分先替换为##序号##
+
+                sbHead.append("(");//加入(
+                sbTail.append(mc.group() + "(");//加入VALUES(
+
+                //3、 insert into ... values形式
+                string[] colArray = sInsert.split(",");
+                string[] paramArray = sPara.split(",");
+
+                int iGood = 0;
+                for (int i = 0; i < colArray.Length; i++)
+                {
+                    string sOneParam = paramArray[i];
+                    string sParamSql = complexParenthesesKeyConvert(sOneParam, "");
+                    if (ToolHelper.IsNotNull(sParamSql))
+                    {
+                        if (iGood == 0)
+                        {
+                            sbHead.append(colArray[i]);
+                            sbTail.append(sParamSql);
+                        }
+                        else
+                        {
+                            sbHead.append("," + colArray[i]);
+                            sbTail.append("," + sParamSql);
+                        }
+                        iGood++;
+                    }
+                }
+                sbHead.append(")");
+                sbTail.append(")");
+                sSql = "";//处理完毕清空SQL
+            }
+            sb.append(sbHead.toString() + sbTail.toString());
+            return sSql;
         }
     }
 }

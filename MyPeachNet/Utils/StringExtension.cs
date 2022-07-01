@@ -19,5 +19,61 @@ namespace org.breezee.MyPeachNet
         {
             return s.Substring(iStart, iEnd - iStart);
         }
+
+        public static string substring(this string s, int iStartIndex)
+        {
+            return s.Substring(iStartIndex);
+        }
+
+        public static string substring(this string s, int iStartIndex,int iEndIndex)
+        {
+            return s.Substring(iStartIndex, iEndIndex - iStartIndex);
+        }
+
+        public static string trim(this string s)
+        {
+            return s.Trim();
+        }
+        public static string[] split(this string s,string? sperate)
+        {
+            return s.Split(sperate);
+        }
+
+        public static bool isEmpty(this string s)
+        {
+            return string.IsNullOrEmpty(s);
+        }
+
+        public static bool equals(this string s,string sOther)
+        {
+            return s.Equals(sOther);
+        }
+        
+
+        public static string toUpperCase(this string s)
+        {
+            return s.ToUpper();
+        }
+
+        public static string replace(this string s,string olds,string snew)
+        {
+            return s.Replace(olds, snew);
+        }
+
+        public static int length(this string s)
+        {
+            return s.Length;
+        }
+
+        public static bool startsWith(this string s, string sStart)
+        {
+            return s.StartsWith(sStart);
+        }
+
+        public static bool endsWith(this string s, string sEnd)
+        {
+            return s.EndsWith(sEnd);
+        }
+
     }
 }

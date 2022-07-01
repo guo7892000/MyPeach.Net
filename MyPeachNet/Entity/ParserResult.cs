@@ -51,7 +51,7 @@ namespace org.breezee.MyPeachNet
 
         public static ParserResult success(string sSql, IDictionary<string, SqlKeyValueEntity> queryMap)
         {
-            return ParserResult.success("SQL转换成功，有效条件请见IDictionary集合！", sSql, queryMap);
+            return success("SQL转换成功，有效条件请见IDictionary集合！", sSql, queryMap);
         }
 
         public static ParserResult fail(string msg, IDictionary<string, string> errMap)
@@ -65,11 +65,18 @@ namespace org.breezee.MyPeachNet
 
         public static ParserResult fail(IDictionary<string, string> errMap)
         {
-            ParserResult result = new ParserResult();
-            result.Code = "1";
-            result.Message = "SQL转换失败，详细请见IDictionary集合！";
-            result.MapError = errMap;
-            return result;
+            return fail("SQL转换失败，详细请见IDictionary集合！", errMap);
+        }
+
+
+        public void setSql(string sSql)
+        {
+            Sql = sSql;
+        }
+
+        public void setMapQuery(IDictionary<string, SqlKeyValueEntity> dic)
+        {
+            DicQuery = dic;
         }
     }
 }

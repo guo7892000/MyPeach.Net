@@ -78,16 +78,28 @@ namespace org.breezee.MyPeachNet
         /// <summary>
         /// 正则表达式匹配方法
         /// </summary>
-        /// <param name="sPattern"></param>
-        /// <param name="sSource"></param>
+        /// <param name="sSource">sql语句</param>
+        /// <param name="sPattern">正则式</param>
         /// <returns></returns>
-        public static MatchCollection Matches(string sPattern, string sSource)
+        public static MatchCollection getMatcher(string sSource, string sPattern)
         {
             Regex regex = new Regex(sPattern, RegexOptions.IgnoreCase);
             MatchCollection mc = regex.Matches(sSource);
             return mc;
         }
 
-        
+        /// <summary>
+        /// 移除SQL前后括号
+        /// </summary>
+        /// <param name="sSql"></param>
+        /// <returns></returns>
+        public static String removeBeginEndParentheses(String sSql)
+        {
+            sSql = sSql.Trim();
+            sSql = sSql.StartsWith("(") ? sSql.Substring(1) : sSql;
+            sSql = sSql.EndsWith(")") ? sSql.Substring(0, sSql.Length - 1) : sSql;
+
+            return sSql;
+        }
     }
 }

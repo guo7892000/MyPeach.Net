@@ -154,5 +154,29 @@ namespace org.breezee.MyPeachNet
 
             return entity;
         }
+
+
+        #region 为了能直接复制过来的Java代码而增加的方法
+        public bool isHasValue()
+        {
+            return HasValue;
+        }
+
+        public string getErrorMessage()
+        {
+            return ErrorMessage;
+        }
+
+        public KeyMoreInfo getKeyMoreInfo()
+        {
+            return KeyMoreInfo;
+        }
+
+        public object getReplaceKeyWithValue()
+        {
+            return ReplaceKeyWithValue;
+        }
+        #endregion
+
     }
 }

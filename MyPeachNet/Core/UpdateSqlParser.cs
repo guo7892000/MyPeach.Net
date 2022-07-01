@@ -24,42 +24,42 @@ namespace org.breezee.MyPeachNet
             sqlTypeEnum = SqlTypeEnum.UPDATE;
         }
 
-        string sUpdateSetPattern = "^UPDATE\\s*\\S*\\s*SET\\s*";//正则式：UPDATE TABLE_NAME SET
-        string sSetEqualPattern = "\\s*,\\s*?(\\[|`)?\\w+(]|`)";//正则式：set段中的赋值部分
-
         protected override string headSqlConvert(string sSql)
         {
             StringBuilder sb = new StringBuilder();
-
-            MatchCollection mc = ToolHelper.Matches(sUpdateSetPattern,sSql);
-            foreach (Match m in mc)
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.updateSetPattern);//先截取UPDATE SET部分
+            while (mc.find())
             {
-                sb.Append(m.Value);//不变的UPDATE SET部分先加入
-                sSql = sSql.Substring(m.Index + m.Value.Length).Trim();
-                //调用From方法
-                sb.Append(fromSqlConvert(sSql));
+                sb.append(mc.group());//不变的UPDATE SET部分先加入
+                sSql = sSql.substring(mc.end()).trim();
+                String sFinalSql = fromWhereSqlConvert(sSql,false);//调用From方法
+                                                                    //如果禁用全表更新，并且条件为空，则抛错！
+                if (ToolHelper.IsNull(sFinalSql) && myPeachProp.isForbidAllTableUpdateOrDelete())
+                {
+                    mapError.put("出现全表更新，已停止", "更新语句不能没有条件，那样会更新整张表数据！");//错误列表
+                }
+                sb.append(sFinalSql);
             }
-
-            return sb.ToString();
+            return sb.toString();
         }
 
         protected override string beforeFromConvert(string sSql)
         {
             StringBuilder sb = new StringBuilder();
-            string[] sSetArray = sSql.Split(",");
+            string[] sSetArray = sSql.split(",");
             string sComma = "";
             foreach (string col in sSetArray)
             {
                 if (!hasKey(col))
                 {
-                    sb.Append(sComma + col);
+                    sb.append(sComma + col);
                     sComma = ",";
                     continue;
                 }
 
-                sb.Append(complexParenthesesKeyConvert(sComma + col, ""));
+                sb.append(complexParenthesesKeyConvert(sComma + col, ""));
 
-                if (string.IsNullOrEmpty(sComma))
+                if (sComma.isEmpty())
                 {
                     string sKey = getFirstKeyName(col);
                     if (mapSqlKeyValid.ContainsKey(sKey))
@@ -68,7 +68,7 @@ namespace org.breezee.MyPeachNet
                     }
                 }
             }
-            return sb.ToString();
+            return sb.toString();
         }
     }
 }
