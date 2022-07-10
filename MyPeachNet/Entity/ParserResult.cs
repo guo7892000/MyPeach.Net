@@ -38,14 +38,14 @@ namespace org.breezee.MyPeachNet
         /**
          * 有效条件集合
          */
-        public IDictionary<string, SqlKeyValueEntity> DicQuery = new Dictionary<string, SqlKeyValueEntity>();
+        public IDictionary<string, SqlKeyValueEntity> entityQuery = new Dictionary<string, SqlKeyValueEntity>();
 
         public static ParserResult success(string msg, string sSql, IDictionary<string, SqlKeyValueEntity> queryMap)
         {
             ParserResult result = new ParserResult();
             result.Code = "0";
             result.Message = msg;
-            result.DicQuery = queryMap;
+            result.entityQuery = queryMap;
             return result;
         }
 
@@ -59,7 +59,7 @@ namespace org.breezee.MyPeachNet
             ParserResult result = new ParserResult();
             result.Code = "1";
             result.Message = msg;
-            result.MapError = errMap;
+            result.MapError = errMap;            
             return result;
         }
 
@@ -74,9 +74,14 @@ namespace org.breezee.MyPeachNet
             Sql = sSql;
         }
 
-        public void setMapQuery(IDictionary<string, SqlKeyValueEntity> dic)
+        public void setMessage(string sMessage)
         {
-            DicQuery = dic;
+            Message = sMessage;
+        }
+
+        public void setEntityQuery(IDictionary<string, SqlKeyValueEntity> dic)
+        {
+            entityQuery = dic;
         }
     }
 }

@@ -34,9 +34,12 @@ namespace MyPeachNetTest
             list.Add(3);
             list.Add(4);
             dicQuery.put("MDLIST", list);//传入一个数组
+            //sqlParsers.properties.showDebugSql = true;
+            //sqlParsers.properties.logSqlPath = "huisql";
+            sqlParsers.properties.logSqlPath = @"E:\mypeach\111";
             ParserResult result = sqlParsers.parse(SqlTypeEnum.SELECT, sSql, dicQuery);
             //0转换成功，返回SQL；1转换失败，返回错误信息
-            System.Console.WriteLine(result.Code.Equals("0") ? result.Sql : result.Message);
+            //System.Console.WriteLine(result.Code.Equals("0") ? result.Sql : result.Message);
         }
 
         public void WithSelect()

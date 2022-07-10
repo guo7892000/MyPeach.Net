@@ -12,6 +12,7 @@ selectTest.Select();
 
 Select2Test select2Test = new Select2Test();
 //select2Test.Select();
+//select2Test.Select2();
 
 InsertTest insertTest = new InsertTest();
 //insertTest.Insert();

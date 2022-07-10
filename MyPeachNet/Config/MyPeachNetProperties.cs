@@ -46,6 +46,16 @@ namespace org.breezee.MyPeachNet
         /// </summary>
         public TargetSqlParamTypeEnum TargetSqlParamTypeEnum { get; set; } = TargetSqlParamTypeEnum.Param;
 
+        /// <summary>
+        /// 是否在标准输出中显示调试的SQL：默认否
+        /// </summary>
+        public bool showDebugSql = false;
+        /// <summary>
+        /// SQL输出日志路径，默认为空，即不输出。如果我们设置了目录，那么会按天生成类似： sql.20220709.txt文件
+        /// 注：相对路径时，开头不要加/，要以文件名开头。
+        /// </summary>
+        public string logSqlPath = "";
+
 
         #region 为了复制过来的java代码能直接使用而增加的方法
         /// <summary>
@@ -75,6 +85,16 @@ namespace org.breezee.MyPeachNet
         public string getParamSuffix()
         {
             return ParamSuffix;
+        }
+
+        public bool isShowDebugSql()
+        {
+            return showDebugSql;
+        }
+
+        public string getLogSqlPath()
+        {
+            return logSqlPath;
         }
         #endregion
 

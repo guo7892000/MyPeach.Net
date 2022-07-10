@@ -1,12 +1,15 @@
 INSERT INTO [dbo].[BAS_PROVINCE] --test
-  ([PROVINCE_ID],[PROVINCE_CODE] --test
+(
+  [PROVINCE_ID],[PROVINCE_CODE] --test
     ,[PROVINCE_NAME]
     ,[SORT_ID]
  ,[TFLAG],CDATE
- )
- VALUES (
+)
+VALUES (
  '#PROVINCE_ID#' /*22*/
     ,'#PROVINCE_CODE#' --test
- ,#PROVINCE_NAME#',#SORT_ID#
-   ,'#TFLAG#',TO_DATE('#CDATE#','YYYY-MM-DD')
-   )
+ ,#PROVINCE_NAME#',
+ #SORT_ID#
+   ,'#TFLAG#',
+   TO_DATE('#CDATE#','YYYY-MM-DD')
+)

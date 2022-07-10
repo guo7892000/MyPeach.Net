@@ -93,7 +93,7 @@ namespace org.breezee.MyPeachNet
         /// </summary>
         /// <param name="sSql"></param>
         /// <returns></returns>
-        public static String removeBeginEndParentheses(String sSql)
+        public static string removeBeginEndParentheses(string sSql)
         {
             sSql = sSql.Trim();
             sSql = sSql.StartsWith("(") ? sSql.Substring(1) : sSql;

@@ -35,5 +35,19 @@ namespace MyPeachNetTest
             //0转换成功，返回SQL；1转换失败，返回错误信息
             System.Console.WriteLine(result.Code.Equals("0") ? result.Sql : result.Message);
         }
+
+
+        public void Select2()
+        {
+            dicQuery.Clear();
+            string sSql = "SELECT * FROM BAS_CITY T WHERE T.CITY_ID = #CITY_ID#";
+            dicQuery.put("PROVINCE_ID", "张三");
+            dicQuery.put("PROVINCE_CODE", "BJ");
+            dicQuery.put("PROVINCE_NAME", "北京");
+            ParserResult result = sqlParsers.parse(SqlTypeEnum.SELECT, sSql, dicQuery);
+            //0转换成功，返回SQL；1转换失败，返回错误信息
+            System.Console.WriteLine(result.Code.Equals("0") ? result.Sql : result.Message);
+        }
+
     }
 }

@@ -104,24 +104,29 @@ namespace org.breezee.MyPeachNet
             while (mc.find())
             {
                 string sParamName = ToolHelper.getKeyName(mc.group(), myPeachProp);
+                SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), dicNew, myPeachProp);
+
                 if (!mapSqlKey.ContainsKey(sParamName))
                 {
-                    SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), dicNew, myPeachProp);
                     mapSqlKey.put(sParamName, param);
-                    if (param.isHasValue())
-                    {
-                        mapSqlKeyValid.put(sParamName, param);//有传值的键
-                    }
-                    if (ToolHelper.IsNotNull(param.getErrorMessage()))
-                    {
-                        mapError.put(sParamName, param.getErrorMessage());//错误列表
-                    }
+                }
+
+                if (!mapSqlKeyValid.ContainsKey(sParamName) && param.isHasValue())
+                {
+                    mapSqlKeyValid.put(sParamName, param);//有传值的键
+                }
+
+                if (ToolHelper.IsNotNull(param.getErrorMessage()))
+                {
+                    mapError.put(sParamName, param.getErrorMessage());//错误列表
                 }
             }
-
+            ParserResult result;
             if (mapSqlKey.size() == 0)
             {
-                return ParserResult.fail("SQL中没有发现键，当前键配置样式为：" + keyPrefix + "key" + keySuffix + "，请修改配置或SQL。已退出！", mapError);
+                result = ParserResult.success(sSql, mapSqlKey);
+                result.setMessage("SQL中没有发现键(键配置样式为：" + keyPrefix + "key" + keySuffix + ")，已直接返回原SQL！");
+                return result;
             }
 
             if (mapError.size() > 0)
@@ -144,7 +149,6 @@ namespace org.breezee.MyPeachNet
             {
                 return ParserResult.fail("部分非空键没有传入值或其他错误，关联信息：" + string.Join(",", mapError.keySet()) + "，已退出！", mapError);
             }
-            ParserResult result;
             //6、返回最终结果
             if (sFinalSql.isEmpty())
             {
@@ -154,7 +158,32 @@ namespace org.breezee.MyPeachNet
             {
                 result = ParserResult.success(sFinalSql, mapSqlKeyValid);
                 result.setSql(sFinalSql);
-                result.setMapQuery(mapSqlKeyValid);
+                result.setEntityQuery(mapSqlKeyValid);
+
+                if (myPeachProp.isShowDebugSql())
+                {
+                    Console.WriteLine(sFinalSql);
+                }
+                string sPath = myPeachProp.getLogSqlPath();
+                if (!sPath.isEmpty())
+                {
+                    string sLogFileName = "/sql." + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
+                    if (!sPath.startsWith("/") && sPath.IndexOf(":") == 0)
+                    {
+                        sPath = System.AppDomain.CurrentDomain.SetupInformation.ApplicationBase + sPath;
+                    }
+                    if (!Directory.Exists(sPath))
+                    {
+                        Directory.CreateDirectory(sPath);
+                    }
+                    
+                    string sFileName = sPath + sLogFileName;
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine(sFinalSql);
+                    sb.AppendLine("*******************【" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "】**************************");
+                    sb.Append(Environment.NewLine);
+                    File.AppendAllText(sPath + sLogFileName, sb.ToString(), Encoding.UTF8);//追加所有文本
+                }
             }
             return result;
         }
@@ -265,7 +294,7 @@ namespace org.breezee.MyPeachNet
             //因为只会有一个FROM，所以这里不用WHILE，而使用if
             if (!mcWhere.find())
             {
-                return sb.toString();//没有WHERE段，则直接返回
+                return sb.toString() + sFromWhere;//没有WHERE段，则直接返回
             }
             //3、FROM段的处理
             string sFrom = sFromWhere.substring(0, mcWhere.start());//

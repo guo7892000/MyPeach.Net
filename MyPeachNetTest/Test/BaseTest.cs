@@ -17,6 +17,7 @@ namespace MyPeachNetTest
         public BaseTest()
         {
             pop = new MyPeachNetProperties();
+            pop.TargetSqlParamTypeEnum = TargetSqlParamTypeEnum.DIRECT_RUN;
             sqlParsers = new SqlParsers(pop);
             dicQuery = new Dictionary<String, Object>();
         }

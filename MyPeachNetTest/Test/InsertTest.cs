@@ -15,7 +15,7 @@ namespace MyPeachNetTest
             string sSql = File.ReadAllText(Path.Combine(sPath, "Insert", "01_Insert.txt"));
             dicQuery.put("PROVINCE_ID", "张三");
             dicQuery.put("#PROVINCE_CODE#", "BJ");
-            //dicQuery.put("#PROVINCE_NAME#","北京");
+            dicQuery.put("#PROVINCE_NAME#","北京");
             //dicQuery.put("#SORT_ID#",1);
             dicQuery.put("#TFLAG#", 1);
             dicQuery.put("#GGTFLAG#", 1);

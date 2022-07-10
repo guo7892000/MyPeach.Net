@@ -8,12 +8,13 @@ using System.Threading.Tasks;
 namespace org.breezee.MyPeachNet
 {
     /// <summary>
-    /// 为了方便代码从Java复制过来使用利用，增加类似Java的方法
+    /// 名称：MatchCollection扩展类
+    /// 说明：为了方便代码从Java复制过来使用利用，增加类似Java的方法
     /// </summary>
     public static class MatchCollectionExtension
     {
-        public static IDictionary<int, int> dicKey = new Dictionary<int, int>();//元素索引
-        public static IDictionary<int, Match> dicMatch = new Dictionary<int, Match>(); //当前匹配项
+        public static IDictionary<int, int> dicKey = new Dictionary<int, int>();//元素索引，以集合内存地址作为键
+        public static IDictionary<int, Match> dicMatch = new Dictionary<int, Match>(); //当前匹配项，以集合内存地址作为键
         public static bool find(this MatchCollection m)
         {
             if (m.Count == 0) return false;
