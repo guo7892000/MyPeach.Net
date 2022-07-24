@@ -32,26 +32,44 @@ namespace org.breezee.MyPeachNet
         public string Sql { get; set; } = string.Empty;
 
         /**
+         * 有效查询条件的实体集合
+         */
+        public IDictionary<string, SqlKeyValueEntity> entityQuery = new Dictionary<string, SqlKeyValueEntity>();
+        /**
+         * 有效查询条件的Object集合
+         */
+        public IDictionary<string, object> ObjectQuery = new Dictionary<string, object>();
+        /**
+         * 有效查询条件的字符集合
+         */
+        public IDictionary<string, string> StringQuery = new Dictionary<string, string>();
+
+        /**
+         * 参数位置化的查询条件值
+         */
+        private List<object> positionCondition = new List<object>();
+
+        /**
          * 错误信息集合
          */
         public IDictionary<string, string> MapError = new Dictionary<string, string>();
-        /**
-         * 有效条件集合
-         */
-        public IDictionary<string, SqlKeyValueEntity> entityQuery = new Dictionary<string, SqlKeyValueEntity>();
 
-        public static ParserResult success(string msg, string sSql, IDictionary<string, SqlKeyValueEntity> queryMap)
+        public static ParserResult success(string msg, string sSql, IDictionary<string, SqlKeyValueEntity> queryMap,IDictionary<string, object> ObjectQuery, IDictionary<string, string> StringQuery, List<object> pCondition)
         {
             ParserResult result = new ParserResult();
             result.Code = "0";
             result.Message = msg;
+            result.Sql = sSql;
             result.entityQuery = queryMap;
+            result.ObjectQuery = ObjectQuery;
+            result.StringQuery = StringQuery;
+            result.positionCondition = pCondition;
             return result;
         }
 
-        public static ParserResult success(string sSql, IDictionary<string, SqlKeyValueEntity> queryMap)
+        public static ParserResult success(string sSql, IDictionary<string, SqlKeyValueEntity> queryMap, IDictionary<string, object> ObjectQuery, IDictionary<string, string> StringQuery, List<object> pCondition)
         {
-            return success("SQL转换成功，有效条件请见IDictionary集合！", sSql, queryMap);
+            return success("SQL转换成功，有效条件请见IDictionary集合！", sSql, queryMap, ObjectQuery, StringQuery, pCondition);
         }
 
         public static ParserResult fail(string msg, IDictionary<string, string> errMap)

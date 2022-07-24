@@ -31,21 +31,21 @@ namespace org.breezee.MyPeachNet
          * @param dic   SQL语句中键的值
          * @return 根据传入的动态条件转换为动态的SQL
          */
-        public ParserResult parse(SqlTypeEnum sqlType, string sSql, IDictionary<string, Object> dic)
+        public ParserResult parse(SqlTypeEnum sqlType, string sSql, IDictionary<string, Object> dic,TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
         {
             switch (sqlType)
             {
                 case SqlTypeEnum.INSERT_VALUES:
                 case SqlTypeEnum.INSERT_SELECT:
-                    return new InsertSqlParser(properties).parse(sSql, dic);
+                    return new InsertSqlParser(properties).parse(sSql, dic, paramTypeEnum);
                 case SqlTypeEnum.UPDATE:
-                    return new UpdateSqlParser(properties).parse(sSql, dic);
+                    return new UpdateSqlParser(properties).parse(sSql, dic, paramTypeEnum);
                 case SqlTypeEnum.DELETE:
-                    return new DeleteSqlParser(properties).parse(sSql, dic);
+                    return new DeleteSqlParser(properties).parse(sSql, dic, paramTypeEnum);
                 case SqlTypeEnum.SELECT:
                 case SqlTypeEnum.SELECT_WITH_AS:
                 default:
-                    return new SelectSqlParser(properties).parse(sSql, dic);
+                    return new SelectSqlParser(properties).parse(sSql, dic, paramTypeEnum);
             }
         }
     }

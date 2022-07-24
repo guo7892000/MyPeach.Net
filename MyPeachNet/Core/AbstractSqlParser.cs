@@ -32,6 +32,9 @@ namespace org.breezee.MyPeachNet
 
         protected IDictionary<string, string> mapsParentheses;//优先处理的括号集合
         public IDictionary<string, string> mapError;//错误信息IDictionary
+        public IDictionary<string, object> ObjectQuery;
+        public IDictionary<string, string> StringQuery;
+        List<object> positionParamConditonList;//位置参数化SQL时查询条件对象数组
 
         protected SqlTypeEnum sqlTypeEnum;
 
@@ -69,6 +72,9 @@ namespace org.breezee.MyPeachNet
             mapSqlKey = new Dictionary<string, SqlKeyValueEntity>();
             mapSqlKeyValid = new Dictionary<string, SqlKeyValueEntity>();
             mapError = new Dictionary<string, string>();//并发容器-错误信息
+            ObjectQuery = new Dictionary<string, object>();
+            StringQuery = new Dictionary<string, string>();
+            positionParamConditonList = new List<object>();
         }
 
         /**
@@ -114,17 +120,25 @@ namespace org.breezee.MyPeachNet
                 if (!mapSqlKeyValid.ContainsKey(sParamName) && param.isHasValue())
                 {
                     mapSqlKeyValid.put(sParamName, param);//有传值的键
+                    ObjectQuery.put(sParamName, param.KeyValue);
+                    StringQuery[sParamName] = param.KeyValue.ToString();
                 }
 
                 if (ToolHelper.IsNotNull(param.getErrorMessage()))
                 {
                     mapError.put(sParamName, param.getErrorMessage());//错误列表
                 }
+
+                //位置参数的条件值数组
+                if (param.isHasValue())
+                {
+                    positionParamConditonList.Add(param.KeyValue);
+                }
             }
             ParserResult result;
             if (mapSqlKey.size() == 0)
             {
-                result = ParserResult.success(sSql, mapSqlKey);
+                result = ParserResult.success(sSql, mapSqlKey, ObjectQuery, StringQuery, positionParamConditonList);
                 result.setMessage("SQL中没有发现键(键配置样式为：" + keyPrefix + "key" + keySuffix + ")，已直接返回原SQL！");
                 return result;
             }
@@ -152,39 +166,57 @@ namespace org.breezee.MyPeachNet
             //6、返回最终结果
             if (sFinalSql.isEmpty())
             {
-                result = ParserResult.fail("转换失败，原因不明。", mapError);
+                return ParserResult.fail("转换失败，原因不明。", mapError);
             }
-            else
-            {
-                result = ParserResult.success(sFinalSql, mapSqlKeyValid);
-                result.setSql(sFinalSql);
-                result.setEntityQuery(mapSqlKeyValid);
 
-                if (myPeachProp.isShowDebugSql())
-                {
-                    Console.WriteLine(sFinalSql);
-                }
-                string sPath = myPeachProp.getLogSqlPath();
-                if (!sPath.isEmpty())
-                {
-                    string sLogFileName = "/sql." + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
-                    if (!sPath.startsWith("/") && sPath.IndexOf(":") == 0)
-                    {
-                        sPath = System.AppDomain.CurrentDomain.SetupInformation.ApplicationBase + sPath;
-                    }
-                    if (!Directory.Exists(sPath))
-                    {
-                        Directory.CreateDirectory(sPath);
-                    }
-                    
-                    string sFileName = sPath + sLogFileName;
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine(sFinalSql);
-                    sb.AppendLine("*******************【" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "】**************************");
-                    sb.Append(Environment.NewLine);
-                    File.AppendAllText(sPath + sLogFileName, sb.ToString(), Encoding.UTF8);//追加所有文本
-                }
+            result = ParserResult.success(sFinalSql, mapSqlKeyValid, ObjectQuery, StringQuery, positionParamConditonList);
+            result.setSql(sFinalSql);
+            result.setEntityQuery(mapSqlKeyValid);
+
+            if (myPeachProp.isShowDebugSql())
+            {
+                Console.WriteLine(sFinalSql);
             }
+            string sPath = myPeachProp.getLogSqlPath();
+            if (!sPath.isEmpty())
+            {
+                string sLogFileName = "/sql." + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
+                if (!sPath.startsWith("/") && sPath.IndexOf(":") == 0)
+                {
+                    sPath = System.AppDomain.CurrentDomain.SetupInformation.ApplicationBase + sPath;
+                }
+                if (!Directory.Exists(sPath))
+                {
+                    Directory.CreateDirectory(sPath);
+                }
+
+                string sFileName = sPath + sLogFileName;
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine(sFinalSql);
+                sb.AppendLine("*******************【" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "】**************************");
+                sb.Append(Environment.NewLine);
+                File.AppendAllText(sPath + sLogFileName, sb.ToString(), Encoding.UTF8);//追加所有文本
+            }
+            return result;
+        }
+
+     /**
+     * 转换重载方法
+     * @param sSql
+     * @param dic
+     * @param targetSqlParamTypeEnum
+     * @return
+     */
+        public ParserResult parse(string sSql, IDictionary<String, Object> dic, TargetSqlParamTypeEnum targetSqlParamTypeEnum)
+        {
+            TargetSqlParamTypeEnum oldParamTypeEnum = myPeachProp.getTargetSqlParamTypeEnum();
+            if (targetSqlParamTypeEnum == oldParamTypeEnum)
+            {
+                return parse(sSql, dic);
+            }
+            myPeachProp.TargetSqlParamTypeEnum = targetSqlParamTypeEnum;//设置为新的目标SQL类型
+            ParserResult result = parse(sSql, dic);
+            myPeachProp.TargetSqlParamTypeEnum = oldParamTypeEnum;//还原为旧的目标SQL类型
             return result;
         }
 
