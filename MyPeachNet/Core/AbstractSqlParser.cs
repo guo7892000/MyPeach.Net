@@ -85,8 +85,8 @@ namespace org.breezee.MyPeachNet
          */
         public ParserResult parse(string sSql, IDictionary<string, object> dic)
         {
-
-            sSql = sSql.trim().toUpperCase();//将SQL转换为大写
+            //去掉前后空字符：注这里不要转换为大写，因为有些条件里有字母值，如转换为大写，则会使条件失效！！
+            sSql = sSql.trim();  //.toUpperCase();//将SQL转换为大写
 
             //1、删除所有注释，降低分析难度，提高准确性
             MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.remarkPatter);//Pattern：explanatory note
