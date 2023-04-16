@@ -34,6 +34,7 @@ namespace org.breezee.MyPeachNet
         public IDictionary<string, string> mapError;//错误信息IDictionary
         public IDictionary<string, object> ObjectQuery;
         public IDictionary<string, string> StringQuery;
+        public IDictionary<string, string> ReplaceOrInCondition; //值替换或IN清单的条件，这些不需要参数化，需要从返回的条件中移除
         List<object> positionParamConditonList;//位置参数化SQL时查询条件对象数组
 
         protected SqlTypeEnum sqlTypeEnum;
@@ -74,6 +75,7 @@ namespace org.breezee.MyPeachNet
             mapError = new Dictionary<string, string>();//并发容器-错误信息
             ObjectQuery = new Dictionary<string, object>();
             StringQuery = new Dictionary<string, string>();
+            ReplaceOrInCondition = new Dictionary<string, string>();
             positionParamConditonList = new List<object>();
         }
 
@@ -129,8 +131,12 @@ namespace org.breezee.MyPeachNet
                     mapError.put(sParamName, param.getErrorMessage());//错误列表
                 }
 
+                if (param.KeyMoreInfo.MustValueReplace)
+                {
+                    ReplaceOrInCondition.Add(sParamName, sParamName); //要被替换或IN清单的条件键
+                }
                 //位置参数的条件值数组
-                if (param.isHasValue())
+                if (param.isHasValue() && !param.KeyMoreInfo.MustValueReplace)
                 {
                     positionParamConditonList.Add(param.KeyValue);
                 }
@@ -167,6 +173,14 @@ namespace org.breezee.MyPeachNet
             if (sFinalSql.isEmpty())
             {
                 return ParserResult.fail("转换失败，原因不明。", mapError);
+            }
+
+            //7、针对值替换以及IN清单，要从条件中移除，防止参数化报错
+            foreach (string sKey in ReplaceOrInCondition.Keys)
+            {
+                mapSqlKeyValid.Remove(sKey);
+                ObjectQuery.Remove(sKey);
+                StringQuery.Remove(sKey);
             }
 
             result = ParserResult.success(sFinalSql, mapSqlKeyValid, ObjectQuery, StringQuery, positionParamConditonList);

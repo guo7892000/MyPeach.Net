@@ -106,23 +106,27 @@ namespace org.breezee.MyPeachNet
             if (objValue is int[])
             {
                 moreInfo.InString = sPreEnd + string.Join(sCenter, (string[])objValue) + sPreEnd;
+                moreInfo.MustValueReplace = true;
                 return;
             }
             else if (objValue is List<int>)
             {
                 List<int> list = ((List<int>)objValue);
                 moreInfo.InString = sPreEnd + string.Join(sCenter, list) + sPreEnd;
+                moreInfo.MustValueReplace = true;
                 return;
             }
             else if (objValue is string[])
             {
                 moreInfo.InString = sPreEnd + string.Join(sCenter, (string[])objValue) + sPreEnd;
+                moreInfo.MustValueReplace = true;
                 return;
             }
             else if (objValue is List<string>)
             {
                 List<string> list = ((List<string>)objValue);
                 moreInfo.InString = sPreEnd + string.Join(sCenter, list) + sPreEnd;
+                moreInfo.MustValueReplace = true;
                 return;
             }
 
