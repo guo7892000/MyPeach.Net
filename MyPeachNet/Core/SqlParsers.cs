@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace org.breezee.MyPeachNet
@@ -47,6 +48,31 @@ namespace org.breezee.MyPeachNet
                 default:
                     return new SelectSqlParser(properties).parse(sSql, dic, paramTypeEnum);
             }
+        }
+
+        /***
+         * @param sSql  需要自动化转换的SQL
+         * @param dic   SQL语句中键的值
+         * @return 根据传入的动态条件转换为动态的SQL
+         */
+        public ParserResult parse(string sSql, IDictionary<string, Object> dic, TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
+        {
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.insertIntoPattern);
+            if (mc.find())
+            {
+                return new InsertSqlParser(properties).parse(sSql, dic, paramTypeEnum);
+            }
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.updateSetPattern);//先截取UPDATE SET部分
+            if (mc.find())
+            {
+                return new UpdateSqlParser(properties).parse(sSql, dic, paramTypeEnum);
+            }
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.deletePattern);//抽取出INSERT INTO TABLE_NAME(部分
+            if (mc.find())
+            {
+                return new DeleteSqlParser(properties).parse(sSql, dic, paramTypeEnum);
+            }
+            return new SelectSqlParser(properties).parse(sSql, dic, paramTypeEnum);
         }
     }
 }
