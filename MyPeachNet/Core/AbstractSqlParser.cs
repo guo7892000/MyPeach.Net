@@ -91,7 +91,7 @@ namespace org.breezee.MyPeachNet
             string sSqlNew = sSql.trim(); //.toUpperCase();//将SQL转换为大写
 
             //1、删除所有注释，降低分析难度，提高准确性
-            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.remarkPatter);//Pattern：explanatory note
+            MatchCollection mc = ToolHelper.getMatcher(sSqlNew, StaticConstants.remarkPatter);//Pattern：explanatory note
             //Pattern regex;
             while (mc.find())
             {
