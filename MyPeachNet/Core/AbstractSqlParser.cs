@@ -79,6 +79,37 @@ namespace org.breezee.MyPeachNet
             positionParamConditonList = new List<object>();
         }
 
+        /// <summary>
+        /// 预获取SQL参数（方便给参数赋值用于测试）
+        /// </summary>
+        /// <param name="sSql"></param>
+        /// <returns></returns>
+        public IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql)
+        {
+            IDictionary<string, SqlKeyValueEntity> dicReturn = new Dictionary<string, SqlKeyValueEntity>();
+            //去掉前后空字符：注这里不要转换为大写，因为有些条件里有字母值，如转换为大写，则会使条件失效！！
+            string sSqlNew = sSql.trim(); //.toUpperCase();//将SQL转换为大写
+
+            //1、删除所有注释，降低分析难度，提高准确性
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.remarkPatter);//Pattern：explanatory note
+            //Pattern regex;
+            while (mc.find())
+            {
+                sSqlNew = sSqlNew.replace(mc.group(), "");//删除所有注释
+            }
+            mc = ToolHelper.getMatcher(sSqlNew, keyPattern);
+            while (mc.find())
+            {
+                string sParamName = ToolHelper.getKeyName(mc.group(), myPeachProp);
+                SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), new Dictionary<string, object>(), myPeachProp);
+                if (dicReturn.ContainsKey(sParamName))
+                {
+                    dicReturn[sParamName] = param;
+                }
+            }
+            return dicReturn;
+        }
+
         /**
          * 转换SQL（主入口方法）
          * @param sSql 要转换的SQL
