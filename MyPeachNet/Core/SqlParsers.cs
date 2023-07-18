@@ -32,7 +32,7 @@ namespace org.breezee.MyPeachNet
          * @param dic   SQL语句中键的值
          * @return 根据传入的动态条件转换为动态的SQL
          */
-        public ParserResult parse(SqlTypeEnum sqlType, string sSql, IDictionary<string, Object> dic,TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
+        public ParserResult parse(SqlTypeEnum sqlType, string sSql, IDictionary<string, Object> dic, TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
         {
             switch (sqlType)
             {
@@ -57,22 +57,32 @@ namespace org.breezee.MyPeachNet
          */
         public ParserResult parse(string sSql, IDictionary<string, Object> dic, TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
         {
+            return GetParser(sSql).parse(sSql, dic, paramTypeEnum);
+        }
+
+        public IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql)
+        {
+            return GetParser(sSql).PreGetParam(sSql);
+        }
+
+        public AbstractSqlParser GetParser(string sSql)
+        {
             MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.insertIntoPattern);
             if (mc.find())
             {
-                return new InsertSqlParser(properties).parse(sSql, dic, paramTypeEnum);
+                return new InsertSqlParser(properties);
             }
             mc = ToolHelper.getMatcher(sSql, StaticConstants.updateSetPattern);//先截取UPDATE SET部分
             if (mc.find())
             {
-                return new UpdateSqlParser(properties).parse(sSql, dic, paramTypeEnum);
+                return new UpdateSqlParser(properties);
             }
             mc = ToolHelper.getMatcher(sSql, StaticConstants.deletePattern);//抽取出INSERT INTO TABLE_NAME(部分
             if (mc.find())
             {
-                return new DeleteSqlParser(properties).parse(sSql, dic, paramTypeEnum);
+                return new DeleteSqlParser(properties);
             }
-            return new SelectSqlParser(properties).parse(sSql, dic, paramTypeEnum);
+            return new SelectSqlParser(properties);
         }
     }
 }

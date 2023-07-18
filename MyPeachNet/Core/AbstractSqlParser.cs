@@ -102,7 +102,7 @@ namespace org.breezee.MyPeachNet
             {
                 string sParamName = ToolHelper.getKeyName(mc.group(), myPeachProp);
                 SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), new Dictionary<string, object>(), myPeachProp);
-                if (dicReturn.ContainsKey(sParamName))
+                if (!dicReturn.ContainsKey(sParamName))
                 {
                     dicReturn[sParamName] = param;
                 }
