@@ -10,6 +10,8 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/12 21:52
+     * @history:
+     *   2023/07/20 BreezeeHui 增加非空参数无值时抛错。
      */
     public abstract class AbstractSqlParser
     {
@@ -156,7 +158,10 @@ namespace org.breezee.MyPeachNet
                     ObjectQuery.put(sParamName, param.KeyValue);
                     StringQuery[sParamName] = param.KeyValue.ToString();
                 }
-
+                if (!param.isHasValue() && param.getKeyMoreInfo().IsMust)
+                {
+                    mapError.put(sParamName, sParamName + "参数非空，但未传值！");//非空参数空值报错
+                }
                 if (ToolHelper.IsNotNull(param.getErrorMessage()))
                 {
                     mapError.put(sParamName, param.getErrorMessage());//错误列表

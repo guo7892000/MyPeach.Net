@@ -65,7 +65,7 @@ namespace org.breezee.MyPeachNet
             return GetParser(sSql).PreGetParam(sSql);
         }
 
-        public AbstractSqlParser GetParser(string sSql)
+        private AbstractSqlParser GetParser(string sSql)
         {
             MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.insertIntoPattern);
             if (mc.find())

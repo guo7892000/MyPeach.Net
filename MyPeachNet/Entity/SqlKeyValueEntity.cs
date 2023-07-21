@@ -11,6 +11,8 @@ using System.Threading.Tasks;
  * @email: guo7892000@126.com
  * @wechat: BreezeeHui
  * @date: 2022/4/12 16:45
+ * @history:
+ *   2023/07/21 BreezeeHui 针对Like的前后模糊查询，其键值也相应增加%，以支持模糊查询
  */
 namespace org.breezee.MyPeachNet
 {
@@ -134,10 +136,12 @@ namespace org.breezee.MyPeachNet
                 if (entity.HasLikePrefix)
                 {
                     entity.ReplaceKeyWithValue = "%" + entity.ReplaceKeyWithValue;
+                    entity.KeyValue = "%" + entity.KeyValue;
                 }
                 if (entity.HasLikeSuffix)
                 {
                     entity.ReplaceKeyWithValue = entity.ReplaceKeyWithValue + "%";
+                    entity.KeyValue = entity.KeyValue + "%";
                 }
                 if (entity.HasSingleQuotes)
                 {

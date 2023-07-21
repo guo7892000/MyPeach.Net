@@ -19,7 +19,7 @@ MyPeach.Net是在.Net生态下的一个动态SQ转换工具，它能根据SQL中
     WITH..AS () SELECT...FROM...WHERE...  
 ```
 * SQL语句键可带自描述，更安全：  
-键字符支持'#MDLIST:N:LS#'格式，其中N表示非空，LS或LI表示列表，即IN括号里的部分字符，他可以传入数组或List。 LS为字符列表，值两边加引号；
+键字符支持'#MDLIST:N:M:LS#'格式，其中N或M表示非空，R表示值替换，LS或LI表示列表，即IN括号里的部分字符，他可以传入数组或List。 LS为字符列表，值两边加引号；
 LI为整型列表，值两边不加引号。
 *  只生成SQL，不执行。如需使用生成后的参数化SQL，需要从ParserResult中取出参数化列表，即DicQuery属性值，其为Dictionary<string, SqlKeyValueEntity>类型。  
 

@@ -9,7 +9,7 @@ namespace org.breezee.MyPeachNet
 {
     /**
      * @objectName: 键更多信息
-     * @description: 目前暂时只有一个N:非空
+     * @description:  N或M-非空；R-替换；LI-整型列表；LS-字符列表
      * @author: guohui.huang
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
@@ -21,6 +21,14 @@ namespace org.breezee.MyPeachNet
          * 可空（默认是）
          */
         public bool Nullable { get; set; } = true;
+        /// <summary>
+        /// 是否必填
+        /// </summary>
+        public bool IsMust
+        {
+            get { return !Nullable; }
+            set { Nullable = !value; }
+        }
         public string InString { get; set; } = string.Empty;
 
         public bool MustValueReplace { get; set; } = false;
@@ -39,53 +47,27 @@ namespace org.breezee.MyPeachNet
                 string sOne = arr[i];
                 if (string.IsNullOrEmpty(sOne)) continue;
 
-                if ("N".Equals(sOne))
+                if (SqlKeyConfig.NOT_NULL.Equals(sOne) || SqlKeyConfig.IS_MUST.Equals(sOne))
                 {
-                    moreInfo.Nullable = false;
+                    moreInfo.Nullable = false;//是否可空
                 }
-                else if ("LS".Equals(sOne))
+                else if (SqlKeyConfig.VALUE_REPLACE.Equals(sOne))
+                {
+                    moreInfo.MustValueReplace = true;//必须替换
+                }
+                else if (SqlKeyConfig.STRING_LIST.Equals(sOne))
                 {
                     listConvert(objValue, moreInfo, true);
                 }
-                else if ("LI".Equals(sOne))
+                else if (SqlKeyConfig.INTEGE_LIST.Equals(sOne))
                 {
                     listConvert(objValue, moreInfo, false);
                 }
-
+                //子配置项：未考虑好
                 string[] arrChild = sOne.Split("-");
                 for (int j = 0; j < arrChild.Length; j++)
                 {
                     string sOneItem = arrChild[j];
-                }
-            }
-
-            for (int i = 0; i < arr.Length; i++)
-            {
-                if (i == 0) continue;
-                String sOne = arr[i];
-                if (string.IsNullOrEmpty(sOne)) continue;
-
-                if ("N".Equals(sOne))
-                {
-                    moreInfo.Nullable = false ;//非空
-                }
-                else if ("R".Equals(sOne))
-                {
-                    moreInfo.MustValueReplace = true;//必须替换
-                }
-                else if ("LS".Equals(sOne))
-                {
-                    listConvert(objValue, moreInfo, true);
-                }
-                else if ("LI".Equals(sOne))
-                {
-                    listConvert(objValue, moreInfo, false);
-                }
-
-                String[] arrChild = sOne.Split("-");
-                for (int j = 0; j < arrChild.Length; j++)
-                {
-                    String sOneItem = arrChild[j];
                 }
             }
             return moreInfo;
