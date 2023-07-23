@@ -58,7 +58,7 @@ namespace org.breezee.MyPeachNet
         /**
          * 替换键后的值：例如 '%张%'
          */
-        public object? ReplaceKeyWithValue { get; set; }
+        public object ReplaceKeyWithValue { get; set; }
         /**
          * 参数化的字符：例如 @CITY_NAME
          */
@@ -71,7 +71,7 @@ namespace org.breezee.MyPeachNet
         /**
          * 更多键信息
          */
-        public KeyMoreInfo? KeyMoreInfo { get; set; } 
+        public KeyMoreInfo KeyMoreInfo { get; set; } 
 
         /**
          * 创建键值实体类对象
@@ -115,7 +115,7 @@ namespace org.breezee.MyPeachNet
                 sParamNamePreSuffix = StaticConstants.HASH + sParamName + StaticConstants.HASH;
             }
 
-            object? inValue = null;
+            object inValue = null;
             if (dicQuery.ContainsKey(sParamName) && ToolHelper.IsNotNull(dicQuery[sParamName]))
             {
                 inValue = dicQuery[sParamName];

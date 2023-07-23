@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MyPeach.Net;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -9,7 +10,7 @@ namespace org.breezee.MyPeachNet
 {
     /**
      * @objectName: 键更多信息
-     * @description:  N或M-非空；R-替换；LI-整型列表；LS-字符列表
+     * @description: N或M-非空；R-替换；LI-整型列表；LS-字符列表
      * @author: guohui.huang
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
@@ -24,10 +25,9 @@ namespace org.breezee.MyPeachNet
         /// <summary>
         /// 是否必填
         /// </summary>
-        public bool IsMust
-        {
+        public bool IsMust { 
             get { return !Nullable; }
-            set { Nullable = !value; }
+            set { Nullable = !value;} 
         }
         public string InString { get; set; } = string.Empty;
 
@@ -40,7 +40,7 @@ namespace org.breezee.MyPeachNet
         public static KeyMoreInfo build(string sKeyMore, object objValue)
         {
             KeyMoreInfo moreInfo = new KeyMoreInfo();
-            string[] arr = sKeyMore.Split(":");
+            string[] arr = sKeyMore.Split(new char[] { ':','：' });//也支持中文冒号
             for (int i = 0; i < arr.Length; i++)
             {
                 if (i == 0) continue;
@@ -64,7 +64,7 @@ namespace org.breezee.MyPeachNet
                     listConvert(objValue, moreInfo, false);
                 }
                 //子配置项：未考虑好
-                string[] arrChild = sOne.Split("-");
+                string[] arrChild = sOne.Split(new char[] { '-' });
                 for (int j = 0; j < arrChild.Length; j++)
                 {
                     string sOneItem = arrChild[j];
