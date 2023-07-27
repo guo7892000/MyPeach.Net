@@ -32,7 +32,7 @@ namespace org.breezee.MyPeachNet
          * @param dic   SQL语句中键的值
          * @return 根据传入的动态条件转换为动态的SQL
          */
-        public ParserResult parse(SqlTypeEnum sqlType, string sSql, IDictionary<string, Object> dic, TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
+        public ParserResult parse(SqlTypeEnum sqlType, string sSql, IDictionary<string, Object> dic,TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
         {
             switch (sqlType)
             {
@@ -55,7 +55,7 @@ namespace org.breezee.MyPeachNet
          * @param dic   SQL语句中键的值
          * @return 根据传入的动态条件转换为动态的SQL
          */
-        public ParserResult parse(string sSql, IDictionary<string, Object> dic, TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
+        public ParserResult parse(string sSql, IDictionary<string, object> dic, TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
         {
             return GetParser(sSql).parse(sSql, dic, paramTypeEnum);
         }
@@ -84,5 +84,6 @@ namespace org.breezee.MyPeachNet
             }
             return new SelectSqlParser(properties);
         }
+
     }
 }

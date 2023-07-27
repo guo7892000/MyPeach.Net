@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace org.breezee.MyPeachNet
@@ -11,7 +14,7 @@ namespace org.breezee.MyPeachNet
      * @wechat: BreezeeHui
      * @date: 2022/4/12 21:52
      * @history:
-     *   2023/07/20 BreezeeHui 增加非空参数无值时抛错。
+     *   2023/07/20 BreezeeHui 增加非空参数无值时抛错。已解决LIKE的问题
      */
     public abstract class AbstractSqlParser
     {
@@ -42,9 +45,9 @@ namespace org.breezee.MyPeachNet
         protected SqlTypeEnum sqlTypeEnum;
 
         /***
-     * 构造函数：初始化所有变量
-     * @param prop 全局配置
-     */
+         * 构造函数：初始化所有变量
+         * @param prop 全局配置
+         */
         public AbstractSqlParser(MyPeachNetProperties prop)
         {
             myPeachProp = prop;
@@ -75,9 +78,9 @@ namespace org.breezee.MyPeachNet
             mapSqlKey = new Dictionary<string, SqlKeyValueEntity>();
             mapSqlKeyValid = new Dictionary<string, SqlKeyValueEntity>();
             mapError = new Dictionary<string, string>();//并发容器-错误信息
+            ReplaceOrInCondition = new Dictionary<string, string>();
             ObjectQuery = new Dictionary<string, object>();
             StringQuery = new Dictionary<string, string>();
-            ReplaceOrInCondition = new Dictionary<string, string>();
             positionParamConditonList = new List<object>();
         }
 
@@ -121,7 +124,7 @@ namespace org.breezee.MyPeachNet
         public ParserResult parse(string sSql, IDictionary<string, object> dic)
         {
             //去掉前后空字符：注这里不要转换为大写，因为有些条件里有字母值，如转换为大写，则会使条件失效！！
-            sSql = sSql.trim();  //.toUpperCase();//将SQL转换为大写
+            sSql = sSql.trim(); //.toUpperCase();//将SQL转换为大写
 
             //1、删除所有注释，降低分析难度，提高准确性
             MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.remarkPatter);//Pattern：explanatory note
@@ -158,10 +161,11 @@ namespace org.breezee.MyPeachNet
                     ObjectQuery.put(sParamName, param.KeyValue);
                     StringQuery[sParamName] = param.KeyValue.ToString();
                 }
-                if (!param.isHasValue() && param.getKeyMoreInfo().IsMust)
+                if(!param.isHasValue() && param.getKeyMoreInfo().IsMust)
                 {
                     mapError.put(sParamName, sParamName + "参数非空，但未传值！");//非空参数空值报错
                 }
+
                 if (ToolHelper.IsNotNull(param.getErrorMessage()))
                 {
                     mapError.put(sParamName, param.getErrorMessage());//错误列表
@@ -171,6 +175,7 @@ namespace org.breezee.MyPeachNet
                 {
                     ReplaceOrInCondition.Add(sParamName, sParamName); //要被替换或IN清单的条件键
                 }
+
                 //位置参数的条件值数组
                 if (param.isHasValue() && !param.KeyMoreInfo.MustValueReplace)
                 {
@@ -847,7 +852,7 @@ namespace org.breezee.MyPeachNet
                     //2、返回替换键后只有值的SQL语句
                     return sSql.replace(mc.group(),entity.getReplaceKeyWithValue().ToString());
                 }
-                //3、返回参数化的SQL语句
+                //3、返回参数化的SQL语句：todo-这里未解决LIKE的问题
                 return sSql.replace(mc.group(), myPeachProp.getParamPrefix() + sKey + myPeachProp.getParamSuffix());
             }
             return sSql;//4、没有键时，直接返回原语句
