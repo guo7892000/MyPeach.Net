@@ -1,5 +1,4 @@
-﻿using MyPeach.Net;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -15,6 +14,8 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/16 23:53
+     * @history:
+     *   2023/07/27 BreezeeHui 增加LI和LS中传入的为字符时，先去掉单引号，根据传入值以逗号分隔后，重新做值替换。listConvert中传入值为空时直接返回。
      */
     public class KeyMoreInfo
     {
@@ -81,6 +82,8 @@ namespace org.breezee.MyPeachNet
          */
         private static void listConvert(object objValue, KeyMoreInfo moreInfo, bool stringFlag)
         {
+            if (objValue == null) return;
+
             string sPreEnd = stringFlag ? "'" : string.Empty;
             string sCenter = stringFlag ? "','" : ",";
 
@@ -111,7 +114,13 @@ namespace org.breezee.MyPeachNet
                 moreInfo.MustValueReplace = true;
                 return;
             }
-
+            else
+            {
+                string[] sValue = objValue.ToString().Replace("'", "").Split(new char[] { ',', '，' });
+                moreInfo.InString = sPreEnd + string.Join(sCenter, sValue) + sPreEnd;
+                moreInfo.MustValueReplace = true;
+                return;
+            }
         }
 
         #region 为了能直接复制过来的Java代码而增加的方法
