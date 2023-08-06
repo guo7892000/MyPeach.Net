@@ -159,7 +159,6 @@ namespace org.breezee.MyPeachNet
             return entity;
         }
 
-
         #region 为了能直接复制过来的Java代码而增加的方法
         public bool isHasValue()
         {

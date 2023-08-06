@@ -9,12 +9,16 @@ namespace org.breezee.MyPeachNet
     /**
      * @objectName: SQL分析抽象类
      * @description: 作为SELECT、INSERT、UPDATE、DELETE分析器的父类，包含SQL的前置处理，如SQL大写、去掉注释、提取键等。
+     *      注：在匹配的SQL中，不能修改原字符，不然根据mc.start()或mc.end()取出的子字符会不对!!
      * @author: guohui.huang
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/12 21:52
      * @history:
      *   2023/07/20 BreezeeHui 增加非空参数无值时抛错。已解决LIKE的问题
+     *   2023/07/29 BreezeeHui 增加WITH INSERT INTO SELECT 和INSERT INTO WITH SELECT的支持。
+     *   2023/08/04 BreezeeHui 键设置增加优先使用配置项（F）的支持，即当一个键出现多次时，优先使用带有F配置的内容。
+     *   2023/08/05 BreezeeHui 增加#号注释支持；修正/**\/注释的匹配与移除。
      */
     public abstract class AbstractSqlParser
     {
@@ -44,6 +48,21 @@ namespace org.breezee.MyPeachNet
 
         protected SqlTypeEnum sqlTypeEnum;
 
+        /*针对SqlServer的WITH... INSERT INTO... SELECT...，示例
+         * with TMP_A AS(select 3 as id,'zhanshan3' as name)
+         * INSERT INTO TEST_TABLE(ID,CNAME)
+         * select * from TMP_A
+        */
+        protected string withInsertIntoSelectPartn;
+
+        /*针对MySql、Oracle、SQLite、PostgerSQL的的INSERT INTO... WITH.. SELECT...，示例
+         * with TMP_A AS(select 3 as id,'zhanshan3' as name)
+         * INSERT INTO TEST_TABLE(ID,CNAME)
+         * select * from TMP_A
+        */
+        protected string insertIntoWithSelectPartn;
+        protected string insertIntoWithSelectPartnCommon;
+
         /***
          * 构造函数：初始化所有变量
          * @param prop 全局配置
@@ -72,7 +91,13 @@ namespace org.breezee.MyPeachNet
             }
             parenthesesRoundKeyPattern = parenthesesRoundKey + "\\d+" + parenthesesRoundKey;
             //因为括号已被替换为##序号##，所以原正则式已不能使用："\\)?\\s*,?\\s*WITH\\s+\\w+\\s+AS\\s*\\("+commonSelectPattern;
-            withSelectPartn = "\\s*,?\\s*WITH\\s+\\w+\\s+AS\\s+" + parenthesesRoundKeyPattern;
+            insertIntoWithSelectPartnCommon = "\\s*,?\\s*WITH\\s+\\w+\\s+AS\\s";
+            withSelectPartn = insertIntoWithSelectPartnCommon + "+" + parenthesesRoundKeyPattern;
+            /*最终正则式：^\s*,?\s*WITH\s+\w+\s+AS\s*##\d+##\s*INSERT\s+INTO\s+\S+\s*##\d+##*/
+            withInsertIntoSelectPartn = "^" + insertIntoWithSelectPartnCommon+"*" + parenthesesRoundKeyPattern +"\\s*"
+                + StaticConstants.insertIntoPatternCommon + parenthesesRoundKeyPattern; //SqlServer使用
+            /*最终正则式：^INSERT\s+INTO\s+\S+\s*\s*,?\s*WITH\s+\w+\s+AS\s*##\d+##*/
+            insertIntoWithSelectPartn = StaticConstants.insertIntoPattern + insertIntoWithSelectPartnCommon + "*" + parenthesesRoundKeyPattern;
 
             mapsParentheses = new Dictionary<string, string>();
             mapSqlKey = new Dictionary<string, SqlKeyValueEntity>();
@@ -92,16 +117,19 @@ namespace org.breezee.MyPeachNet
         public IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql)
         {
             IDictionary<string, SqlKeyValueEntity> dicReturn = new Dictionary<string, SqlKeyValueEntity>();
-            //去掉前后空字符：注这里不要转换为大写，因为有些条件里有字母值，如转换为大写，则会使条件失效！！
+            //1、预处理：去掉前后空字符：注这里不要转换为大写，因为有些条件里有字母值，如转换为大写，则会使条件失效！！
             string sSqlNew = sSql.trim(); //.toUpperCase();//将SQL转换为大写
 
-            //1、删除所有注释，降低分析难度，提高准确性
-            MatchCollection mc = ToolHelper.getMatcher(sSqlNew, StaticConstants.remarkPatter);//Pattern：explanatory note
-            //Pattern regex;
+            //2、删除所有注释，降低分析难度，提高准确性
+            //2.1 先去掉--的单行注释
+            MatchCollection mc = ToolHelper.getMatcher(sSqlNew, StaticConstants.remarkPatterSingle2Reduce);//Pattern：explanatory note
             while (mc.find())
             {
                 sSqlNew = sSqlNew.replace(mc.group(), "");//删除所有注释
             }
+            //2.2 先去掉/***\/的多行注释：因为多行注释不好用正则匹配，所以其就要像左右括号一样，单独分析匹配
+            sSqlNew = removeMultiLineRemark(sSqlNew);
+
             mc = ToolHelper.getMatcher(sSqlNew, keyPattern);
             while (mc.find())
             {
@@ -123,18 +151,21 @@ namespace org.breezee.MyPeachNet
          */
         public ParserResult parse(string sSql, IDictionary<string, object> dic)
         {
-            //去掉前后空字符：注这里不要转换为大写，因为有些条件里有字母值，如转换为大写，则会使条件失效！！
+            //1、预处理：去掉前后空字符：注这里不要转换为大写，因为有些条件里有字母值，如转换为大写，则会使条件失效！！
             sSql = sSql.trim(); //.toUpperCase();//将SQL转换为大写
 
-            //1、删除所有注释，降低分析难度，提高准确性
-            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.remarkPatter);//Pattern：explanatory note
-            //Pattern regex;
+            //2、删除所有注释，降低分析难度，提高准确性
+            //2.1 先去掉--的单行注释
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.remarkPatterSingle2Reduce);//Pattern：explanatory note
             while (mc.find())
             {
                 sSql = sSql.replace(mc.group(), "");//删除所有注释
             }
+            //2.2 先去掉/***\/的多行注释：因为多行注释不好用正则匹配，所以其就要像左右括号一样，单独分析匹配
+            sSql = removeMultiLineRemark(sSql);
 
-            //2、对传入的条件集合中的KEY进行优化：如去掉#号，如有：分隔，那么取第一个值作为键
+            //3、条件参数处理
+            //3.1、对传入的条件集合中的KEY进行优化：如去掉#号，如有：分隔，那么取第一个值作为键
             IDictionary<string, object> dicNew = new Dictionary<string, object>();
             foreach (string key in dic.Keys)
             {
@@ -143,16 +174,27 @@ namespace org.breezee.MyPeachNet
                 dicNew.put(sKeyNew, dic.get(key));
             }
 
-            //3、获取SQL所有参数信息
+            //3.2、获取SQL所有参数信息
+            string sNoConditionSql = sSql;
             mc = ToolHelper.getMatcher(sSql, keyPattern);
             while (mc.find())
             {
+                //先将#号替换为*，防止跟原注释冲突。注：字符数量还是跟原SQL一样！
+                string sNewParam = mc.group().replace("#", "*");
+                sNoConditionSql = sNoConditionSql.replace(mc.group(), sNewParam); //将参数替换为新字符
                 string sParamName = ToolHelper.getKeyName(mc.group(), myPeachProp);
                 SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), dicNew, myPeachProp);
 
                 if (!mapSqlKey.ContainsKey(sParamName))
                 {
-                    mapSqlKey.put(sParamName, param);
+                    mapSqlKey.put(sParamName, param);//参数不存在，直接添加
+                }
+                else
+                {
+                    if (param.getKeyMoreInfo().IsFirst)
+                    {
+                        mapSqlKey[sParamName] = param; //如是优先配置，那么替换原存在的配置对象
+                    }
                 }
 
                 if (!mapSqlKeyValid.ContainsKey(sParamName) && param.isHasValue())
@@ -182,6 +224,7 @@ namespace org.breezee.MyPeachNet
                     positionParamConditonList.Add(param.KeyValue);
                 }
             }
+            //3.3、当传入参数不符合，则直接返回退出
             ParserResult result;
             if (mapSqlKey.size() == 0)
             {
@@ -195,14 +238,34 @@ namespace org.breezee.MyPeachNet
                 return ParserResult.fail("部分非空键（" + string.Join(",", mapError.keySet()) + "）没有传入值，已退出！", mapError);
             }
 
-            //4、得到符合左右括号正则式的内容，并替换为类似：##序号##格式，方便先从大方面分析结构，之后再取出括号里的内容来进一步分析
+            //4、移除#开头的单行注释
+            mc = ToolHelper.getMatcher(sNoConditionSql, StaticConstants.remarkPatterSingleHash);
+            StringBuilder sbNoRemark = new StringBuilder();
+            int iGroupStart = 0;//组开始的位置
+            bool isHasHashRemark = false;
+            while (mc.find())
+            {
+                sbNoRemark.append(sSql.substring(iGroupStart, mc.start()));
+                iGroupStart = mc.end();
+                isHasHashRemark = true;
+            }
+            if (iGroupStart > 0)
+            {
+                sbNoRemark.append(sSql.substring(iGroupStart)); //最后的字符
+            }
+            if (isHasHashRemark)
+            {
+                sSql = sbNoRemark.toString();
+            }
+
+            //5、得到符合左右括号正则式的内容，并替换为类似：##序号##格式，方便先从大方面分析结构，之后再取出括号里的内容来进一步分析
             string sNewSql = generateParenthesesKey(sSql);
             if (ToolHelper.IsNotNull(sNewSql))
             {
                 sSql = sNewSql;
             }
 
-            //5、转换处理：边拆边处理
+            //6、转换处理：边拆边处理
             string sFinalSql = headSqlConvert(sSql);
 
             //在处理过程中，也会往mapError写入错误信息，所以这里如有错误，也返回出错信息
@@ -210,13 +273,13 @@ namespace org.breezee.MyPeachNet
             {
                 return ParserResult.fail("部分非空键没有传入值或其他错误，关联信息：" + string.Join(",", mapError.keySet()) + "，已退出！", mapError);
             }
-            //6、返回最终结果
+            //7、返回最终结果
             if (sFinalSql.isEmpty())
             {
                 return ParserResult.fail("转换失败，原因不明。", mapError);
             }
 
-            //7、针对值替换以及IN清单，要从条件中移除，防止参数化报错
+            //8、针对值替换以及IN清单，要从条件中移除，防止参数化报错
             foreach (string sKey in ReplaceOrInCondition.Keys)
             {
                 mapSqlKeyValid.Remove(sKey);
@@ -273,6 +336,55 @@ namespace org.breezee.MyPeachNet
             ParserResult result = parse(sSql, dic);
             myPeachProp.TargetSqlParamTypeEnum = oldParamTypeEnum;//还原为旧的目标SQL类型
             return result;
+        }
+
+        /**
+         * 移除多行注释
+         * 目的：为了简化SQL分析
+         * @param sSql
+         * @return
+         */
+        protected String removeMultiLineRemark(String sSql)
+        {
+            MatchCollection mc;
+            StringBuilder sb = new StringBuilder();
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.remarkPatterMultiLine);
+            //int iGroup = 0;//第几组括号
+            int iLeft = 0;//左注释数
+            int iRight = 0;//右注释数
+            int iGroupStart = 0;//组开始的位置
+
+            while (mc.find())
+            {
+                if ("/*".equals(mc.group()))
+                {
+                    iLeft++;
+                    if (iLeft == 1)
+                    {
+                        sb.append(sSql.substring(iGroupStart, mc.start()));//注：不要包括左括号
+                        iGroupStart = mc.end();
+                    }
+                }
+                else
+                {
+                    iRight++;
+                }
+                //判断是否是一组数据
+                if (iLeft == iRight)
+                {
+                    iGroupStart = mc.end();//下一个语句的开始
+                                           //iGroup++;
+                    iLeft = 0;
+                    iRight = 0;
+                }
+            }
+            //最后的字符
+            if (iGroupStart > 0)
+            {
+                sb.append(sSql.substring(iGroupStart));
+            }
+            //返回SQL
+            return sb.toString().trim();
         }
 
         /**
@@ -642,72 +754,102 @@ namespace org.breezee.MyPeachNet
             string sValue = "";
             //1、分析是否有包含 ##序号## 正则式的字符
             MatchCollection mc = ToolHelper.getMatcher(sSql, parenthesesRoundKeyPattern);
-            if (!mc.find())
+            bool hasFirstMatcher = mc.find();
+            if (!hasFirstMatcher)
             {
                 //没有双括号，但可能存在单括号，如是要修改为1=1或AND 1=1 的形式
                 return parenthesesConvert(sSql, sLastAndOr);
             }
 
-            //2、有 ##序号## 字符的语句分析
-            string sSource = mapsParentheses.get(mc.group()).trim();//取出 ##序号## 内容
-            if (!hasKey(sSource))
+            string sSqlNew = sSql; //注：在匹配的SQL中，不能修改原字符，不然根据mc.start()或mc.end()取出的子字符会不对!!
+            Dictionary<string,String> dicReplace = new Dictionary<string,String>();
+            //2、有 ##序号## 字符的语句分析：可能会有多个:TODO 未针对每一个##序号##作详细分析
+            //比如WITH...INSERT INTO...SELECT和INSERT INTO...WITH...INSERT INTO...
+            string sSource = "";
+            string sReturn = string.Empty;
+            while (hasFirstMatcher)
             {
-                //2.1 没有键，得到替换并合并之前的AND或OR字符
-                string sConnect = sLastAndOr + sSql.replace(mc.group(), sSource);
-                if (!hasKey(sConnect))
+                sSource = mapsParentheses.get(mc.group());//取出 ##序号## 内容
+                if (!hasKey(sSource))
                 {
-                    //2.2 合并后也没有键，则直接追加到头部字符构建器
-                    return sConnect;
+                    sSqlNew = sSqlNew.Replace(mc.group(), sSource);
+                    dicReplace.Add(mc.group(), sSource);  //没有键的字符，先加到集合中。在返回前替换
+                    //取出下个匹配##序号##的键，如果有，那么继续下个循环去替换##序号##
+                    hasFirstMatcher = mc.find();
+                    if (hasFirstMatcher)
+                    {
+                        //继续取出##序号##键的值来替换：WITH...INSERT INTO...SELECT和INSERT INTO...WITH...INSERT INTO...这两种情况会进入本段代码
+                        continue;
+                    }
+                    //2.1 没有键，得到替换并合并之前的AND或OR字符
+                    string sConnect = sLastAndOr + sSqlNew;
+                    if (!hasKey(sConnect))
+                    {
+                        //2.2 合并后也没有键，则直接追加到头部字符构建器
+                        return sConnect;
+                    }
+                    //2.3 如果有键传入，那么进行单个键转换
+                    return singleKeyConvert(sConnect);
                 }
-                //2.3 如果有键传入，那么进行单个键转换
-                return singleKeyConvert(sConnect);
-            }
 
-            //判断是否所有键为空
-            bool allKeyNull = true;
-            MatchCollection mc1 = ToolHelper.getMatcher(sSource, keyPattern);
-            while (mc1.find())
-            {
-                if (ToolHelper.IsNotNull(singleKeyConvert(mc1.group())))
+                //判断是否所有键为空
+                bool allKeyNull = true;
+                MatchCollection mc1 = ToolHelper.getMatcher(sSource, keyPattern);
+                while (mc1.find())
                 {
-                    allKeyNull = false;
-                    break;
+                    if (ToolHelper.IsNotNull(singleKeyConvert(mc1.group())))
+                    {
+                        allKeyNull = false;
+                        break;
+                    }
                 }
+
+                string sPre = sSql.substring(0, mc.start());
+                string sEnd = sSql.substring(mc.end());
+
+                //3、子查询处理
+                string sChildQuery = childQueryConvert(sLastAndOr + sPre, sEnd, sSource);
+                sb.append(sChildQuery);//加上子查询
+                if (allKeyNull || ToolHelper.IsNotNull(sChildQuery))
+                {
+                    sReturn = sb.toString();
+                    foreach (string sKey in dicReplace.Keys)
+                    {
+                        sReturn = sReturn.Replace(sKey, dicReplace[sKey]); //在返回前替换不包含参数的##序号##字符
+                    }
+                    return sReturn;//如果全部参数为空，或者子查询已处理，直接返回
+                }
+                //4、有键值传入，并且非子查询，做AND或OR正则匹配分拆字符
+                sb.append(sLastAndOr + sPre);//因为不能移除"()"，所以这里先拼接收"AND"或"OR"，记得加上头部字符
+
+                //AND或OR正则匹配处理
+                // 注：此处虽然与【andOrConditionConvert】有点类似，但有不同，不能将以下代码替换为andOrConditionConvert方法调用
+                MatchCollection mc2 = ToolHelper.getMatcher(sSource, StaticConstants.andOrPatter);
+                int iStart = 0;
+                string beforeAndOr = "";
+                while (mc2.find())
+                {
+                    //4.1 存在AND或OR
+                    string sOne = sSource.substring(iStart, mc2.start()).trim();
+                    //【括号SQL段转换方法】
+                    sValue = parenthesesConvert(sOne, beforeAndOr);
+                    sb.append(sValue);
+                    iStart = mc2.end();
+                    beforeAndOr = mc2.group();
+                }
+                //4.2 最后一个AND或OR之后的的SQL字符串处理，也是调用【括号SQL段转换方法】
+                sValue = parenthesesConvert(sSource.substring(iStart), beforeAndOr);
+                sb.append(sValue + sEnd);//加上尾部字符
+
+                hasFirstMatcher = mc.find();//注：这里也要重新给hasFirstMatcher赋值，要不会有死循环
             }
 
-            string sPre = sSql.substring(0, mc.start());
-            string sEnd = sSql.substring(mc.end());
-
-            //3、子查询处理
-            string sChildQuery = childQueryConvert(sLastAndOr + sPre, sEnd, sSource);
-            sb.append(sChildQuery);//加上子查询
-            if (allKeyNull || ToolHelper.IsNotNull(sChildQuery))
+            sReturn = sb.toString();
+            foreach (string sKey in dicReplace.Keys)
             {
-                return sb.toString();//如果全部参数为空，或者子查询已处理，直接返回
+                sReturn = sReturn.Replace(sKey, dicReplace[sKey]); //在返回前替换不包含参数的##序号##字符
             }
-            //4、有键值传入，并且非子查询，做AND或OR正则匹配分拆字符
-            sb.append(sLastAndOr + sPre);//因为不能移除"()"，所以这里先拼接收"AND"或"OR"，记得加上头部字符
-
-            //AND或OR正则匹配处理
-            // 注：此处虽然与【andOrConditionConvert】有点类似，但有不同，不能将以下代码替换为andOrConditionConvert方法调用
-            MatchCollection mc2 = ToolHelper.getMatcher(sSource, StaticConstants.andOrPatter);
-            int iStart = 0;
-            string beforeAndOr = "";
-            while (mc2.find())
-            {
-                //4.1 存在AND或OR
-                string sOne = sSource.substring(iStart, mc2.start()).trim();
-                //【括号SQL段转换方法】
-                sValue = parenthesesConvert(sOne, beforeAndOr);
-                sb.append(sValue);
-                iStart = mc2.end();
-                beforeAndOr = mc2.group();
-            }
-            //4.2 最后一个AND或OR之后的的SQL字符串处理，也是调用【括号SQL段转换方法】
-            sValue = parenthesesConvert(sSource.substring(iStart), beforeAndOr);
-            sb.append(sValue + sEnd);//加上尾部字符
-
-            return sb.toString();
+            return sReturn;//如果全部参数为空，或者子查询已处理，直接返回
         }
 
         /**

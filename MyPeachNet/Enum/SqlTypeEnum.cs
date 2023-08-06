@@ -33,6 +33,14 @@ namespace org.breezee.MyPeachNet
          */
         INSERT_SELECT,
         /**
+         * 新增语句(WITH...INSERT INTO... SELECT...)，主要是SqlServer使用
+         */
+        WITH_INSERT_SELECT,
+        /**
+         * 新增语句(INSERT INTO...WITH...SELECT...)
+         */
+        INSERT_WITH_SELECT,
+        /**
          * 更新语句
          */
         UPDATE,

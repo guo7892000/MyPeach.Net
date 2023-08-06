@@ -17,6 +17,7 @@ namespace org.breezee.MyPeachNet
      * @date: 2022/4/16 23:53
      * @history:
      *    2023/07/27 BreezeeHui 增加LI和LS中传入的为字符时，先去掉单引号，根据传入值以逗号分隔后，重新做值替换。listConvert中传入值为空时直接返回。
+     *    2023/08/04 BreezeeHui 键设置增加优先使用配置项（F）的支持，即当一个键出现多次时，优先使用该配置内容。
      */
     public class KeyMoreInfo
     {
@@ -33,6 +34,10 @@ namespace org.breezee.MyPeachNet
         }
         public string InString { get; set; } = string.Empty;
 
+        /// <summary>
+        /// 是否优先使用的配置（默认否）
+        /// </summary>
+        public bool IsFirst{ get; set; } = false;
         public bool MustValueReplace { get; set; } = false;
         /**
          * 构建【键更多信息】对象
@@ -56,6 +61,10 @@ namespace org.breezee.MyPeachNet
                 else if (SqlKeyConfig.VALUE_REPLACE.Equals(sOne))
                 {
                     moreInfo.MustValueReplace = true;//必须替换
+                }
+                else if (SqlKeyConfig.IS_FIRST.Equals(sOne))
+                {
+                    moreInfo.IsFirst = true;//是否优先使用本配置
                 }
                 else if (SqlKeyConfig.STRING_LIST.Equals(sOne))
                 {

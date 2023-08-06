@@ -38,6 +38,8 @@ namespace org.breezee.MyPeachNet
             {
                 case SqlTypeEnum.INSERT_VALUES:
                 case SqlTypeEnum.INSERT_SELECT:
+                case SqlTypeEnum.WITH_INSERT_SELECT:
+                case SqlTypeEnum.INSERT_WITH_SELECT:
                     return new InsertSqlParser(properties).parse(sSql, dic, paramTypeEnum);
                 case SqlTypeEnum.UPDATE:
                     return new UpdateSqlParser(properties).parse(sSql, dic, paramTypeEnum);

@@ -13,6 +13,8 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/12 16:45
+     * @history:
+     *   2023/08/05 BreezeeHui 修改remarkPatter正则式，对/**\/中间应该可以包括换行符
      */
     public class StaticConstants
     {
@@ -23,10 +25,18 @@ namespace org.breezee.MyPeachNet
         public static readonly string HASH = "#";
         public static readonly string PERCENT = "%";
         /**
-         * sql备注的正则表达式：支持--和/***\/
+         * sql单行双减号注释的正则表达式：--注释内容
          */
-        public static readonly string remarkPatter = "--.*|(/\\*.*/*/)";
+        public static readonly string remarkPatterSingle2Reduce = "--.*";
         /**
+         * sql单行#号注释的正则表达式：#注释内容
+         */
+        public static readonly string remarkPatterSingleHash = "#.*";
+        /**
+         * sql多行注释的正则表达式：/***\/
+         */
+        public static readonly string remarkPatterMultiLine = "/\\*|\\*/";
+            /**
          * 左括号或右括号的正则式
          */
         public static readonly string parenthesesPattern="\\(|\\)";
@@ -91,10 +101,13 @@ namespace org.breezee.MyPeachNet
          * VALUES正则式：)VALUES(，但括号部分已被替换，所以旧正则式已不适用："\\)\\s*VALUES\\s*\\(\\s*"
          */
         public static readonly string valuesPattern = "\\s*VALUES\\s*"; //正则式：)VALUES(
+
+        public static readonly string insertIntoPatternCommon = "INSERT\\s+INTO\\s+\\S+\\s*";
         /**
          * INSERT INTO正则式：INSERT INTO TABLE_NAME(，但括号部分已被替换，所以旧正则式已不适用："^INSERT\\s+INTO\\s+\\S+\\s*\\(\\s*"
          */
-        public static readonly string insertIntoPattern = "^INSERT\\s+INTO\\s+\\S+\\s*";
+        public static readonly string insertIntoPattern = "^" + insertIntoPatternCommon;
+
 
         //public static readonly string insertSelectPattern = "\\s*\\)" + commonSelectPattern;
         public static readonly string updateSetPattern = "^UPDATE\\s*\\S*\\s*SET\\s*";//正则式：UPDATE TABLE_NAME SET

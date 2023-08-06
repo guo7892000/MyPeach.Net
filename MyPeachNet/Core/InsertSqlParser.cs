@@ -28,17 +28,34 @@ namespace org.breezee.MyPeachNet
         {
             StringBuilder sbHead = new StringBuilder();
 
-            sSql = insertValueConvert(sSql, sbHead);
+            //针对WITH...INSERT INTO...SELECT...的处理
+            sSql = withInsertIntoSelect(sSql, sbHead);
             if (ToolHelper.IsNull(sSql))
             {
-                return sbHead.toString();//当是INSERT INTO...VALUES...方式，则方法会返回空
+                return sbHead.toString();//当是WITH...INSERT INTO...SELECT...方式，则方法会返回空
+            }
+            //针对INSERT INTO...WITH...SELECT...的处理
+            sSql = insertIntoWithSelect(sSql, sbHead);
+            if (ToolHelper.IsNull(sSql))
+            {
+                return sbHead.toString();//当是INSERT INTO...WITH...SELECT...方式，则方法会返回空
             }
 
-            //4、INSERT INTO TABLE_NAME 。。 SELECT形式
-            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
+            //针对INSERT INTO...VALUES和INSERT INTO...SELECT的处理
+            return insertValueOrSelectConvert(sSql, sbHead);
+        }
+
+        /// <summary>
+        /// 针对SqlServer的withInsertIntoSelect
+        /// </summary>
+        /// <param name="sSql"></param>
+        /// <returns></returns>
+        private string withInsertIntoSelect(string sSql,StringBuilder sbHead)
+        {;
+            MatchCollection mc = ToolHelper.getMatcher(sSql, withInsertIntoSelectPartn);//抽取出INSERT INTO TABLE_NAME(部分
             while (mc.find())
             {
-                sqlTypeEnum = SqlTypeEnum.INSERT_SELECT;
+                sqlTypeEnum = SqlTypeEnum.WITH_INSERT_SELECT;
                 string sInsert = sSql.substring(0, mc.start()) + mc.group();
                 sInsert = complexParenthesesKeyConvert(sInsert, "");
                 sbHead.append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
@@ -46,8 +63,32 @@ namespace org.breezee.MyPeachNet
                 //FROM段处理
                 string sFinalSql = fromWhereSqlConvert(sSql, false);
                 sbHead.append(sFinalSql);
+                sSql = "";//处理完毕清空SQL
             }
-            return sbHead.toString();
+            return sSql;
+        }
+
+        /// <summary>
+        /// 针对MySql、Oracle、PostgreSQL、SQLite的insertIntoWithSelect
+        /// </summary>
+        /// <param name="sSql"></param>
+        /// <returns></returns>
+        private string insertIntoWithSelect(string sSql, StringBuilder sbHead)
+        {
+            MatchCollection mc = ToolHelper.getMatcher(sSql, insertIntoWithSelectPartn);//抽取出INSERT INTO TABLE_NAME(部分
+            while (mc.find())
+            {
+                sqlTypeEnum = SqlTypeEnum.INSERT_WITH_SELECT;
+                string sInsert = sSql.substring(0, mc.start()) + mc.group();
+                sInsert = complexParenthesesKeyConvert(sInsert, "");
+                sbHead.append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
+                sSql = sSql.substring(mc.end()).trim();
+                //FROM段处理
+                string sFinalSql = fromWhereSqlConvert(sSql, false);
+                sbHead.append(sFinalSql);
+                sSql = "";//处理完毕清空SQL
+            }
+            return sSql;
         }
 
         protected override string beforeFromConvert(string sSql)
@@ -75,7 +116,7 @@ namespace org.breezee.MyPeachNet
          * @param sb
          * @return
          */
-        private string insertValueConvert(String sSql, StringBuilder sb)
+        private string insertValueOrSelectConvert(String sSql, StringBuilder sb)
         {
             StringBuilder sbHead = new StringBuilder();
             StringBuilder sbTail = new StringBuilder();
@@ -93,6 +134,7 @@ namespace org.breezee.MyPeachNet
             string sPara = "";
             if (mc.find())
             {
+                sqlTypeEnum = SqlTypeEnum.INSERT_VALUES;
                 string sInsertKey = sSql.substring(0, mc.start()).trim();
                 string sParaKey = sSql.substring(mc.end()).trim();
 
@@ -130,6 +172,23 @@ namespace org.breezee.MyPeachNet
                 sbHead.append(")");
                 sbTail.append(")");
                 sSql = "";//处理完毕清空SQL
+            }
+            else
+            {
+                //4、INSERT INTO TABLE_NAME 。。 SELECT形式
+                mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
+                while (mc.find())
+                {
+                    sqlTypeEnum = SqlTypeEnum.INSERT_SELECT;
+                    sInsert = sSql.substring(0, mc.start()) + mc.group();
+                    sInsert = complexParenthesesKeyConvert(sInsert, "");
+                    sbHead.append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
+                    sSql = sSql.substring(mc.end()).trim();
+                    //FROM段处理
+                    string sFinalSql = fromWhereSqlConvert(sSql, false);
+                    sbHead.append(sFinalSql);
+                }
+                return sbHead.toString();
             }
             sb.append(sbHead.toString() + sbTail.toString());
             return sSql;
