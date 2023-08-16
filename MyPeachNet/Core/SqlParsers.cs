@@ -32,7 +32,7 @@ namespace org.breezee.MyPeachNet
          * @param dic   SQL语句中键的值
          * @return 根据传入的动态条件转换为动态的SQL
          */
-        public ParserResult parse(SqlTypeEnum sqlType, string sSql, IDictionary<string, Object> dic,TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
+        public ParserResult parse(SqlTypeEnum sqlType, string sSql, IDictionary<string, object> dic,TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
         {
             switch (sqlType)
             {
@@ -45,6 +45,8 @@ namespace org.breezee.MyPeachNet
                     return new UpdateSqlParser(properties).parse(sSql, dic, paramTypeEnum);
                 case SqlTypeEnum.DELETE:
                     return new DeleteSqlParser(properties).parse(sSql, dic, paramTypeEnum);
+                case SqlTypeEnum.CommonMerge:
+                    return new CommonSqlParser(properties).parse(sSql, dic, paramTypeEnum);
                 case SqlTypeEnum.SELECT:
                 case SqlTypeEnum.SELECT_WITH_AS:
                 default:
@@ -59,32 +61,44 @@ namespace org.breezee.MyPeachNet
          */
         public ParserResult parse(string sSql, IDictionary<string, object> dic, TargetSqlParamTypeEnum paramTypeEnum = TargetSqlParamTypeEnum.NameParam)
         {
-            return GetParser(sSql).parse(sSql, dic, paramTypeEnum);
+            return GetParser(sSql, dic).parse(sSql, dic, paramTypeEnum);
         }
 
-        public IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql)
+        public IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql, IDictionary<string, object> dic)
         {
-            return GetParser(sSql).PreGetParam(sSql);
+            return GetParser(sSql, dic).PreGetParam(sSql, dic);
         }
 
-        private AbstractSqlParser GetParser(string sSql)
+        private AbstractSqlParser GetParser(string sSql, IDictionary<string, object> dic)
         {
-            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.insertIntoPattern);
-            if (mc.find())
+            AbstractSqlParser parser = new SelectSqlParser(properties);
+            sSql = parser.RemoveSqlRemark(sSql, dic);
+            //根据SQL的正则，再重新返回正确的SqlParser
+            if (parser.isRightSqlType(sSql))
             {
-                return new InsertSqlParser(properties);
+                return parser;
             }
-            mc = ToolHelper.getMatcher(sSql, StaticConstants.updateSetPattern);//先截取UPDATE SET部分
-            if (mc.find())
+            parser = new UpdateSqlParser(properties);
+            if (parser.isRightSqlType(sSql))
             {
-                return new UpdateSqlParser(properties);
+                return parser;
             }
-            mc = ToolHelper.getMatcher(sSql, StaticConstants.deletePattern);//抽取出INSERT INTO TABLE_NAME(部分
-            if (mc.find())
+            parser = new InsertSqlParser(properties);
+            if (parser.isRightSqlType(sSql))
             {
-                return new DeleteSqlParser(properties);
+                return parser;
             }
-            return new SelectSqlParser(properties);
+            parser = new DeleteSqlParser(properties);
+            if (parser.isRightSqlType(sSql))
+            {
+                return parser;
+            }
+            parser = new CommonSqlParser(properties);
+            if (parser.isRightSqlType(sSql))
+            {
+                return parser;
+            }
+            throw new Exception("不支持的SQL类型，请将SQL发给作者，后续版本增加支持！！");
         }
 
     }

@@ -116,7 +116,7 @@ namespace org.breezee.MyPeachNet
          * @param sb
          * @return
          */
-        private string insertValueOrSelectConvert(String sSql, StringBuilder sb)
+        private string insertValueOrSelectConvert(string sSql, StringBuilder sb)
         {
             StringBuilder sbHead = new StringBuilder();
             StringBuilder sbTail = new StringBuilder();
@@ -129,58 +129,19 @@ namespace org.breezee.MyPeachNet
             }
 
             //2、判断是否insert into ... values形式
-            mc = ToolHelper.getMatcher(sSql, StaticConstants.valuesPattern);//先根据VALUES关键字将字符分隔为两部分
-            string sInsert = "";
-            string sPara = "";
-            if (mc.find())
+            sSql = dealInsertItemAndValue(sSql, sbHead, sbTail);
+            if(string.IsNullOrEmpty(sSql))
             {
                 sqlTypeEnum = SqlTypeEnum.INSERT_VALUES;
-                string sInsertKey = sSql.substring(0, mc.start()).trim();
-                string sParaKey = sSql.substring(mc.end()).trim();
-
-                sInsert = ToolHelper.removeBeginEndParentheses(mapsParentheses.get(sInsertKey));
-                sPara = ToolHelper.removeBeginEndParentheses(mapsParentheses.get(sParaKey));
-                sPara = generateParenthesesKey(sPara);//针对有括号的部分先替换为##序号##
-
-                sbHead.append("(");//加入(
-                sbTail.append(mc.group() + "(");//加入VALUES(
-
-                //3、 insert into ... values形式
-                string[] colArray = sInsert.split(",");
-                string[] paramArray = sPara.split(",");
-
-                int iGood = 0;
-                for (int i = 0; i < colArray.Length; i++)
-                {
-                    string sOneParam = paramArray[i];
-                    string sParamSql = complexParenthesesKeyConvert(sOneParam, "");
-                    if (ToolHelper.IsNotNull(sParamSql))
-                    {
-                        if (iGood == 0)
-                        {
-                            sbHead.append(colArray[i]);
-                            sbTail.append(sParamSql);
-                        }
-                        else
-                        {
-                            sbHead.append("," + colArray[i]);
-                            sbTail.append("," + sParamSql);
-                        }
-                        iGood++;
-                    }
-                }
-                sbHead.append(")");
-                sbTail.append(")");
-                sSql = "";//处理完毕清空SQL
             }
             else
             {
                 //4、INSERT INTO TABLE_NAME 。。 SELECT形式
                 mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
-                while (mc.find())
+                if (mc.find())
                 {
                     sqlTypeEnum = SqlTypeEnum.INSERT_SELECT;
-                    sInsert = sSql.substring(0, mc.start()) + mc.group();
+                    string sInsert = sSql.substring(0, mc.start()) + mc.group();
                     sInsert = complexParenthesesKeyConvert(sInsert, "");
                     sbHead.append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
                     sSql = sSql.substring(mc.end()).trim();
@@ -188,10 +149,44 @@ namespace org.breezee.MyPeachNet
                     string sFinalSql = fromWhereSqlConvert(sSql, false);
                     sbHead.append(sFinalSql);
                 }
+                else
+                {
+                    sqlTypeEnum = SqlTypeEnum.Unknown;
+                }
                 return sbHead.toString();
             }
             sb.append(sbHead.toString() + sbTail.toString());
             return sSql;
+        }
+
+        /// <summary>
+        /// 是否正确SQL类型抽象方法
+        /// </summary>
+        /// <param name="sSql"></param>
+        /// <returns></returns>
+        public override bool isRightSqlType(string sSql)
+        {
+            MatchCollection mc = ToolHelper.getMatcher(sSql, withInsertIntoSelectPartn);//抽取出INSERT INTO TABLE_NAME(部分
+            if (mc.find())
+            {
+                return true;
+            }
+            mc = ToolHelper.getMatcher(sSql, insertIntoWithSelectPartn);//抽取出INSERT INTO TABLE_NAME(部分
+            if (mc.find())
+            {
+                return true;
+            }
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.valuesPattern);//抽取出INSERT INTO TABLE_NAME(部分
+            if (mc.find())
+            {
+                return true;
+            }
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
+            if (mc.find())
+            {
+                return true;
+            }
+            return false;
         }
     }
 }

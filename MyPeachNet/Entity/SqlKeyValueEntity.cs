@@ -127,6 +127,19 @@ namespace org.breezee.MyPeachNet
             }
 
             entity.KeyMoreInfo = KeyMoreInfo.build(sParamNameMore, inValue);//设置更多信息对象
+            if (entity.KeyMoreInfo.IsNoQuotationMark)
+            {
+                entity.HasSingleQuotes = false; //重新根据配置来去掉引号
+            }
+            //值为空，且默认值不为空才赋值
+            if (inValue == null && entity.KeyMoreInfo.DefaultValue!=null && !string.IsNullOrWhiteSpace(entity.KeyMoreInfo.DefaultValue))
+            {
+                inValue = entity.KeyMoreInfo.DefaultValue;//取默认值
+                if (entity.KeyMoreInfo.IsDefaultValueNoQuotationMark)
+                {
+                    entity.HasSingleQuotes = false;
+                }
+            }
 
             if (inValue != null)
             {
@@ -155,7 +168,6 @@ namespace org.breezee.MyPeachNet
                     entity.ErrorMessage = "键(" + entity.KeyName + ")的值没有传入。";
                 }
             }
-
             return entity;
         }
 

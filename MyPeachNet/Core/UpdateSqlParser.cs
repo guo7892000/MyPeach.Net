@@ -28,8 +28,9 @@ namespace org.breezee.MyPeachNet
         {
             StringBuilder sb = new StringBuilder();
             MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.updateSetPattern);//先截取UPDATE SET部分
-            while (mc.find())
+            if(mc.find())
             {
+                sqlTypeEnum = SqlTypeEnum.UPDATE;
                 sb.append(mc.group());//不变的UPDATE SET部分先加入
                 sSql = sSql.substring(mc.end()).trim();
                 String sFinalSql = fromWhereSqlConvert(sSql,false);//调用From方法
@@ -40,35 +41,27 @@ namespace org.breezee.MyPeachNet
                 }
                 sb.append(sFinalSql);
             }
+            else
+            {
+                sqlTypeEnum = SqlTypeEnum.Unknown; 
+            }
             return sb.toString();
         }
 
         protected override string beforeFromConvert(string sSql)
         {
-            StringBuilder sb = new StringBuilder();
-            string[] sSetArray = sSql.split(",");
-            string sComma = "";
-            foreach (string col in sSetArray)
-            {
-                if (!hasKey(col))
-                {
-                    sb.append(sComma + col);
-                    sComma = ",";
-                    continue;
-                }
+            return dealUpdateSetItem(sSql);
+        }
 
-                sb.append(complexParenthesesKeyConvert(sComma + col, ""));
-
-                if (sComma.isEmpty())
-                {
-                    string sKey = getFirstKeyName(col);
-                    if (mapSqlKeyValid.ContainsKey(sKey))
-                    {
-                        sComma = ",";
-                    }
-                }
-            }
-            return sb.toString();
+        /// <summary>
+        /// 是否正确SQL类型抽象方法
+        /// </summary>
+        /// <param name="sSql"></param>
+        /// <returns></returns>
+        public override bool isRightSqlType(string sSql)
+        {
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.updateSetPattern);
+            return mc.find();
         }
     }
 }
