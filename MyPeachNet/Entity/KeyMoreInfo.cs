@@ -19,6 +19,7 @@ namespace org.breezee.MyPeachNet
      *    2023/07/27 BreezeeHui 增加LI和LS中传入的为字符时，先去掉单引号，根据传入值以逗号分隔后，重新做值替换。listConvert中传入值为空时直接返回。
      *    2023/08/04 BreezeeHui 键设置增加优先使用配置项（F）的支持，即当一个键出现多次时，优先使用该配置内容。
      *    2023/08/13 BreezeeHui 键设置增加默认值、不加引号。
+     *    2023/08/18 BreezeeHui 字符比较忽略大小写（Equals(sOne, StringComparison.OrdinalIgnoreCase) 代替 Equals(sOne)）。子配置支持支持-&,;，；分隔
      */
     public class KeyMoreInfo
     {
@@ -70,31 +71,31 @@ namespace org.breezee.MyPeachNet
                 if (i == 0) continue;
                 string sOne = arr[i];
                 if (string.IsNullOrEmpty(sOne)) continue;
-
-                string[] sMoreArr = sOne.Split( '-', '&' );
+                //支持-&,;，；分隔
+                string[] sMoreArr = sOne.Split( '-', '&',',',';','，','；' );
                 sOne = sMoreArr[0];
 
-                if (SqlKeyConfig.V_MUST.Equals(sOne))
+                if (SqlKeyConfig.V_MUST.Equals(sOne, StringComparison.OrdinalIgnoreCase))
                 {
                     moreInfo.Nullable = false;//是否可空
                 }
-                else if (SqlKeyConfig.V_REPLACE.Equals(sOne))
+                else if (SqlKeyConfig.V_REPLACE.Equals(sOne, StringComparison.OrdinalIgnoreCase))
                 {
                     moreInfo.MustValueReplace = true;//必须替换
                 }
-                else if (SqlKeyConfig.CFG_FIRST.Equals(sOne))
+                else if (SqlKeyConfig.CFG_FIRST.Equals(sOne,StringComparison.OrdinalIgnoreCase))
                 {
                     moreInfo.IsFirst = true;//是否优先使用本配置
                 }
-                else if (SqlKeyConfig.STRING_LIST.Equals(sOne))  //字符列表
+                else if (SqlKeyConfig.STRING_LIST.Equals(sOne, StringComparison.OrdinalIgnoreCase))  //字符列表
                 {
                     listConvert(objValue, moreInfo, true);
                 }
-                else if (SqlKeyConfig.INTEGE_LIST.Equals(sOne)) //整型列表
+                else if (SqlKeyConfig.INTEGE_LIST.Equals(sOne, StringComparison.OrdinalIgnoreCase)) //整型列表
                 {
                     listConvert(objValue, moreInfo, false);
                 }
-                else if (SqlKeyConfig.V_DEFAULT.Equals(sOne)) //默认值
+                else if (SqlKeyConfig.V_DEFAULT.Equals(sOne, StringComparison.OrdinalIgnoreCase)) //默认值
                 {
                     for (int j = 1; j < sMoreArr.Length; j++)
                     {
@@ -104,18 +105,18 @@ namespace org.breezee.MyPeachNet
                         }
                         else
                         {
-                            if (SqlKeyConfig.V_REPLACE.Equals(sMoreArr[j]))
+                            if (SqlKeyConfig.V_REPLACE.Equals(sMoreArr[j], StringComparison.OrdinalIgnoreCase))
                             {
                                 moreInfo.IsDefaultValueValueReplace = true;//默认值必须值替换
                             }
-                            if (SqlKeyConfig.V_NO_QUOTATION_MARK.Equals(sMoreArr[j]))
+                            if (SqlKeyConfig.V_NO_QUOTATION_MARK.Equals(sMoreArr[j], StringComparison.OrdinalIgnoreCase))
                             {
                                 moreInfo.IsDefaultValueNoQuotationMark = true;//默认值不加引号
                             }
                         }
                     }
                 }
-                else if (SqlKeyConfig.V_NO_QUOTATION_MARK.Equals(sOne)) //值不加引号
+                else if (SqlKeyConfig.V_NO_QUOTATION_MARK.Equals(sOne, StringComparison.OrdinalIgnoreCase)) //值不加引号
                 {
                     moreInfo.IsNoQuotationMark = true;
                 }

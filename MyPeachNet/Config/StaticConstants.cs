@@ -117,8 +117,13 @@ namespace org.breezee.MyPeachNet
         //MERGE INTO
         public static readonly string mergePatternHead = @"^MERGE\s+(INTO\s+)*(\w+|[.\[\]`])+(\s+AS\s+\w+)*\s+USING\s+"; //有些表名要加[]`.
         public static readonly string mergePatternMatchOrNot = @"WHEN\s+(NOT\s+)*MATCHED\s+THEN\s+";
-        //Special Value
-        public static readonly string inConditionSpecialValue = @"@MP&SPV{{\w+}}";
 
+        //动态参数的键前缀
+        public static readonly string dynConditionKeyPre = @"@MP&DYN&KEY:";
+
+        //参数形式：'%#{NAME:D&getdate()-R-n}%'
+        public static readonly string keyPatternHashLeftBrace = @"'?%?\#\{\w+(:\w+((-|&)(\(|\)|\w)*)*)*\}%?'?";//键正则式，注这里针对#{}都要加上转义符，否则会报错！！
+        //参数形式：'%#NAME:D&getdate()-R-n#%'
+        public static readonly string keyPatternHash = @"'?%?\#\w+(:\w+((-|&)(\(|\)|\w)*)*)*\#%?'?";//键正则式：针对#参数#方式
     }
 }

@@ -49,7 +49,6 @@ namespace MyPeach.Net
 
         //MyPeach系统标签：动态SQL标志字符
         public static readonly string dynamicSqlRemarkFlagString = @"@MP&DYN";
-        //MyPeach系统标签：传入条件特殊值，如null、getdate()、sysdate
-        public static readonly string inConditionSpecialValue = @"@MP&SPV";
+
     }
 }

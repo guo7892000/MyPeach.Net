@@ -13,13 +13,15 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/12 16:45
+     * @history:
+     *   2023/08/18 BreezeeHui 取消KeyStyle的设置，默认都支持#{参数}和#参数#两种方式，只是在处理过程中，会将#{}转换为#参数#后，再统一处理。
      */
     public class MyPeachNetProperties
     {
         /// <summary>
         /// SQL中键的样式枚举
         /// </summary>
-        public SqlKeyStyleEnum KeyStyle { get; set; } = SqlKeyStyleEnum.POUND_SIGN_AROUND;
+        //public SqlKeyStyleEnum KeyStyle { get; set; } = SqlKeyStyleEnum.POUND_SIGN_AROUND;
 
         /// <summary>
         /// 名称：参数化的前缀（Sql param prefix）
@@ -67,10 +69,10 @@ namespace org.breezee.MyPeachNet
             return forbidAllTableUpdateOrDelete;
         }
 
-        public SqlKeyStyleEnum getKeyStyle()
-        {
-            return KeyStyle;
-        }
+        //public SqlKeyStyleEnum getKeyStyle()
+        //{
+        //    return KeyStyle;
+        //}
 
         public TargetSqlParamTypeEnum getTargetSqlParamTypeEnum()
         {

@@ -13,6 +13,7 @@ using System.Threading.Tasks;
  * @date: 2022/4/12 16:45
  * @history:
  *   2023/07/21 BreezeeHui 针对Like的前后模糊查询，其键值也相应增加%，以支持模糊查询
+ *   2023/08/18 BreezeeHui 参数前后缀只取#参数#；当条件不传值时，取默认值，根据默认值是否必须值替换来决定值必须值替换。
  */
 namespace org.breezee.MyPeachNet
 {
@@ -105,15 +106,15 @@ namespace org.breezee.MyPeachNet
             entity.KeyName = sParamName;
             entity.ParamString = prop.ParamPrefix + sParamName + prop.ParamSuffix;
 
-            string sParamNamePreSuffix;
-            if (prop.KeyStyle == SqlKeyStyleEnum.POUND_SIGN_BRACKETS)
-            {
-                sParamNamePreSuffix = StaticConstants.HASH_LEFT_BRACE + sParamName + StaticConstants.RIGHT_BRACE;
-            }
-            else
-            {
-                sParamNamePreSuffix = StaticConstants.HASH + sParamName + StaticConstants.HASH;
-            }
+            string sParamNamePreSuffix = StaticConstants.HASH + sParamName + StaticConstants.HASH;
+            //if (prop.KeyStyle == SqlKeyStyleEnum.POUND_SIGN_BRACKETS)
+            //{
+            //    sParamNamePreSuffix = StaticConstants.HASH_LEFT_BRACE + sParamName + StaticConstants.RIGHT_BRACE;
+            //}
+            //else
+            //{
+            //    sParamNamePreSuffix = StaticConstants.HASH + sParamName + StaticConstants.HASH;
+            //}
 
             object inValue = null;
             if (dicQuery.ContainsKey(sParamName) && ToolHelper.IsNotNull(dicQuery[sParamName]))
@@ -132,12 +133,16 @@ namespace org.breezee.MyPeachNet
                 entity.HasSingleQuotes = false; //重新根据配置来去掉引号
             }
             //值为空，且默认值不为空才赋值
-            if (inValue == null && entity.KeyMoreInfo.DefaultValue!=null && !string.IsNullOrWhiteSpace(entity.KeyMoreInfo.DefaultValue))
+            if (inValue == null && entity.KeyMoreInfo.DefaultValue != null && !string.IsNullOrWhiteSpace(entity.KeyMoreInfo.DefaultValue))
             {
                 inValue = entity.KeyMoreInfo.DefaultValue;//取默认值
                 if (entity.KeyMoreInfo.IsDefaultValueNoQuotationMark)
                 {
                     entity.HasSingleQuotes = false;
+                }
+                if (entity.KeyMoreInfo.IsDefaultValueValueReplace)
+                {
+                    entity.KeyMoreInfo.MustValueReplace = true; //当没有传入值，且默认值为值替换时。当作是有传入默认值，且是替换
                 }
             }
 
