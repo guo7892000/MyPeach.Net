@@ -23,6 +23,7 @@ namespace org.breezee.MyPeachNet
      *   2023/08/10 BreezeeHui 将移除注释抽成一个独立方法RemoveSqlRemark；增加SQL类型是否正确的抽象方法isRightSqlType。
      *   2023/08/13 BreezeeHui 增加注释中动态SQL的条件拼接；统一将参数转换为##形式，方便统一处理。增加MERGE INTO语句支持！
      *   2023/08/18 BreezeeHui 针对注释中动态SQL的条件拼接，在预获取条件参数时，把动态SQL中的键也加进去！
+     *   2023/08/19 BreezeeHui 只有在非预获取条件参数，且传入条件为空时，才把默认值赋给传入条件值！
      */
     public abstract class AbstractSqlParser
     {
@@ -100,8 +101,9 @@ namespace org.breezee.MyPeachNet
         /// 预获取SQL参数（方便给参数赋值用于测试）
         /// </summary>
         /// <param name="sSql"></param>
+        /// <param name="dic"></param>
         /// <returns></returns>
-        public  IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql, IDictionary<string, object> dic)
+        public IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql, IDictionary<string, object> dic)
         {
             IDictionary<string, SqlKeyValueEntity> dicReturn = new Dictionary<string, SqlKeyValueEntity>();
             //条件键优化
@@ -113,7 +115,7 @@ namespace org.breezee.MyPeachNet
             while (mc.find())
             {
                 string sParamName = ToolHelper.getKeyName(mc.group(), myPeachProp);
-                SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), new Dictionary<string, object>(), myPeachProp);
+                SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), new Dictionary<string, object>(), myPeachProp,true);
                 if (!dicReturn.ContainsKey(sParamName))
                 {
                     dicReturn[sParamName] = param;
@@ -483,25 +485,34 @@ namespace org.breezee.MyPeachNet
         {
             try
             {
-                string[] dnyArr = sOneRemarkSql.Split(new char[] { '&' });
-                if (dnyArr.Length == 2)
+                MatchCollection mc = ToolHelper.getMatcher(sOneRemarkSql, StaticConstants.dynConditionSqlSegmentConfigPattern);
+                if (mc.find())
                 {
-                    string sCond = dnyArr[0].Trim();
-                    int iLen = 2;
-                    int iFinStart = sCond.IndexOf("{[");
-                    int iFinEnd = sCond.IndexOf("]}");
-                    sCond = sCond.substring(iFinStart, iFinEnd);
+                    string sCond = sOneRemarkSql.substring(0,mc.start());
+                    string sDynSql = sOneRemarkSql.substring(mc.end());
 
-                    //
-                    string sDynSql = dnyArr[1].Trim();
-                    sDynSql = sDynSql.substring(sDynSql.IndexOf("{[")+ iLen, sDynSql.IndexOf("]}"));
+                    mc = ToolHelper.getMatcher(sCond, @"\s*\{\[\s*");
+                    if (mc.find())
+                    {
+                        sCond = sCond.substring(mc.end()).trim();
+                    }
+
+                    mc = ToolHelper.getMatcher(sDynSql, @"\s*\]\}\s*");
+                    if (mc.find())
+                    {
+                        sDynSql = sDynSql.substring(0,mc.start()).trim();
+                    }
+
+                    //int iLen = 0;
+                    int iFinStart = -1;
+                    //int iFinEnd = -1;
                     string sOperateStr = "";
                     if (sCond.IndexOf(">=") > 0)
                     {
                         //大于等于：使用整型比较
                         sOperateStr = ">=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
+                        string sKey = sCond.substring(0, iFinStart);
                         string sValue = sCond.substring(iFinStart + sOperateStr.Length);
                         if (dic.ContainsKey(sKey))
                         {
@@ -519,7 +530,7 @@ namespace org.breezee.MyPeachNet
                         //小于等于：使用整型比较
                         sOperateStr = "<=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
+                        string sKey = sCond.substring(0, iFinStart);
                         string sValue = sCond.substring(iFinStart + sOperateStr.Length);
                         if (dic.ContainsKey(sKey))
                         {
@@ -537,7 +548,7 @@ namespace org.breezee.MyPeachNet
                         //小于：使用整型比较
                         sOperateStr = "<";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
+                        string sKey = sCond.substring(0, iFinStart);
                         string sValue = sCond.substring(iFinStart + sOperateStr.Length);
                         if (dic.ContainsKey(sKey))
                         {
@@ -555,7 +566,7 @@ namespace org.breezee.MyPeachNet
                         //大于：使用整型比较
                         sOperateStr = ">";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
+                        string sKey = sCond.substring(0, iFinStart);
                         string sValue = sCond.substring(iFinStart + sOperateStr.Length);
                         if (dic.ContainsKey(sKey))
                         {
@@ -573,7 +584,7 @@ namespace org.breezee.MyPeachNet
                         //等于：使用字符比较
                         sOperateStr = "=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
+                        string sKey = sCond.substring(0, iFinStart);
                         string sValue = sCond.substring(iFinStart + sOperateStr.Length);
                         if (dic.ContainsKey(sKey))
                         {
@@ -589,7 +600,7 @@ namespace org.breezee.MyPeachNet
                         //不等于：使用字符比较
                         sOperateStr = "!=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
+                        string sKey = sCond.substring(0, iFinStart);
                         string sValue = sCond.substring(iFinStart + sOperateStr.Length);
                         if (dic.ContainsKey(sKey))
                         {
@@ -605,7 +616,7 @@ namespace org.breezee.MyPeachNet
                         //不等于：使用字符比较
                         sOperateStr = "<>";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
+                        string sKey = sCond.substring(0, iFinStart);
                         string sValue = sCond.substring(iFinStart + sOperateStr.Length);
                         if (dic.ContainsKey(sKey))
                         {
@@ -621,7 +632,7 @@ namespace org.breezee.MyPeachNet
                         throw new Exception("不支持的动态SQl操作符，只能使用>=、>、<=、<、=、！=、<>这几种单值比较符！原始字符：" + sCond);
                     }
                 }
-                throw new Exception("动态SQl配置错误！！" );
+                return "";
             }
             catch(Exception e)
             {
@@ -1236,7 +1247,7 @@ namespace org.breezee.MyPeachNet
                     //2、返回替换键后只有值的SQL语句
                     return sSql.replace(mc.group(),entity.getReplaceKeyWithValue().ToString());
                 }
-                //3、返回参数化的SQL语句：todo-这里未解决LIKE的问题
+                //3、返回参数化的SQL语句：LIKE的问题是在值的前或后或两边加上%解决
                 return sSql.replace(mc.group(), myPeachProp.getParamPrefix() + sKey + myPeachProp.getParamSuffix());
             }
             return sSql;//4、没有键时，直接返回原语句

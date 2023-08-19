@@ -62,7 +62,7 @@ MyPeachNetTest: Test Engineering
 *3 Simply introduce this dependency into your project.
 *4 Modify the configuration ( Config MyPeachNetProperties. cs): Generally, we can use the default values.
 *5 Write code:
-Conditional use: key characters support the '# MDLIST: N: LS: R #' format, where N or M means non empty, LS means character list, and LI means integer list, that is, some characters in IN brackets.
+Conditional use: key characters support the '#MDLIST:M:LS:R#' format, where M means non empty, LS means character list, and LI means integer list, that is, some characters in IN brackets.
 *5.1 The following is a code example:
 ```
 string sPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + @"\Sql\";
