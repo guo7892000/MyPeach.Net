@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -145,14 +146,14 @@ namespace org.breezee.MyPeachNet
         /// </summary>
         /// <param name="dic"></param>
         /// <returns></returns>
-        private static IDictionary<string, object> conditionKeyOptimize(IDictionary<string, object> dic)
+        private  IDictionary<string, object> conditionKeyOptimize(IDictionary<string, object> dic)
         {
             //1、对传入的条件集合中的KEY进行优化：如去掉#号，如有：分隔，那么取第一个值作为键
             IDictionary<string, object> dicNew = new Dictionary<string, object>();
             foreach (string key in dic.Keys)
             {
                 string sKeyNew = key.replace("#", "").replace("{", "").replace("}", "");
-                sKeyNew = sKeyNew.split(":")[0];
+                sKeyNew = sKeyNew.Split(StaticConstants.keyBigTypeSpit)[0].trim(); //去掉前后空格
                 dicNew.put(sKeyNew, dic.get(key));
             }
             return dicNew;
@@ -485,28 +486,38 @@ namespace org.breezee.MyPeachNet
         {
             try
             {
-                MatchCollection mc = ToolHelper.getMatcher(sOneRemarkSql, StaticConstants.dynConditionSqlSegmentConfigPattern);
+                MatchCollection mc = ToolHelper.getMatcher(sOneRemarkSql, StaticConstants.dynSqlSegmentConfigPatternCenter);
                 if (mc.find())
                 {
                     string sCond = sOneRemarkSql.substring(0,mc.start());
                     string sDynSql = sOneRemarkSql.substring(mc.end());
 
-                    mc = ToolHelper.getMatcher(sCond, @"\s*\{\[\s*");
+                    mc = ToolHelper.getMatcher(sCond, StaticConstants.dynSqlSegmentConfigPatternLeft);
                     if (mc.find())
                     {
                         sCond = sCond.substring(mc.end()).trim();
                     }
 
-                    mc = ToolHelper.getMatcher(sDynSql, @"\s*\]\}\s*");
+                    mc = ToolHelper.getMatcher(sDynSql, StaticConstants.dynSqlSegmentConfigPatternRight);
                     if (mc.find())
                     {
                         sDynSql = sDynSql.substring(0,mc.start()).trim();
                     }
 
-                    //int iLen = 0;
                     int iFinStart = -1;
-                    //int iFinEnd = -1;
                     string sOperateStr = "";
+                    //增加IN和NOT IN 支持
+                    mc = ToolHelper.getMatcher(sCond, StaticConstants.notInPattern);
+                    if (mc.find())
+                    {
+                        return dynSqlSegmentInOrNotConditionEqual(dic, isPreGetCondition, mc, sCond, sDynSql,true);
+                    }
+                    mc = ToolHelper.getMatcher(sCond, StaticConstants.inPattern);
+                    if (mc.find())
+                    {
+                        return dynSqlSegmentInOrNotConditionEqual(dic, isPreGetCondition, mc, sCond, sDynSql, false);
+                    }
+
                     if (sCond.IndexOf(">=") > 0)
                     {
                         //大于等于：使用整型比较
@@ -638,6 +649,39 @@ namespace org.breezee.MyPeachNet
             {
                 return "";
             }
+        }
+
+        /// <summary>
+        /// 动态SQL段的In或Not IN判断
+        /// </summary>
+        /// <param name="dic"></param>
+        /// <param name="isPreGetCondition"></param>
+        /// <param name="mc"></param>
+        /// <param name="sCond"></param>
+        /// <param name="sDynSql"></param>
+        /// <param name="isNotIn"></param>
+        /// <returns></returns>
+        private static string dynSqlSegmentInOrNotConditionEqual(IDictionary<string, object> dic, bool isPreGetCondition, MatchCollection mc, string sCond, string sDynSql,bool isNotIn)
+        {
+            string sKey = sCond.substring(0, mc.start()).trim();
+            string sValue = sCond.substring(mc.end()).replace("(", "").replace(")", "").replace("'", "");
+            if (dic.ContainsKey(sKey))
+            {
+                string[] arrNotIn = sValue.split(",");
+                foreach (string item in arrNotIn)
+                {
+                    if (item.equals(dic[sKey].ToString()))
+                    {
+                        return isNotIn ? "":sDynSql; //找到了：针对NOT IN返回空；针对IN返回动态SQL
+                    }
+                }
+                return isNotIn ? sDynSql: ""; //没找到：针对NOT IN返回动态SQL；针对IN返回空
+            }
+            if (isPreGetCondition && !dic.ContainsKey(sKey))
+            {
+                dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
+            }
+            return "";
         }
 
         /**

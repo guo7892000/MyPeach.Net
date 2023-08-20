@@ -65,15 +65,16 @@ namespace org.breezee.MyPeachNet
         public static KeyMoreInfo build(string sKeyMore, object objValue)
         {
             KeyMoreInfo moreInfo = new KeyMoreInfo();
-            string[] arr = sKeyMore.Split(new char[] { ':','：' });//也支持中文冒号
+            //配置大类分隔
+            string[] arr = sKeyMore.Split(StaticConstants.keyBigTypeSpit);//也支持中文冒号
             for (int i = 0; i < arr.Length; i++)
             {
                 if (i == 0) continue;
-                string sOne = arr[i];
+                string sOne = arr[i].trim();
                 if (string.IsNullOrEmpty(sOne)) continue;
-                //支持-&,;，；分隔
-                string[] sMoreArr = sOne.Split( '-', '&',',',';','，','；' );
-                sOne = sMoreArr[0];
+                //配置小类分隔
+                string[] sMoreArr = sOne.Split(StaticConstants.keySmallTypeSpit);
+                sOne = sMoreArr[0].trim();
 
                 if (SqlKeyConfig.V_MUST.Equals(sOne, StringComparison.OrdinalIgnoreCase))
                 {
@@ -101,15 +102,15 @@ namespace org.breezee.MyPeachNet
                     {
                         if (j == 1)
                         {
-                            moreInfo.DefaultValue = sMoreArr[1];
+                            moreInfo.DefaultValue = sMoreArr[1].trim();
                         }
                         else
                         {
-                            if (SqlKeyConfig.V_REPLACE.Equals(sMoreArr[j], StringComparison.OrdinalIgnoreCase))
+                            if (SqlKeyConfig.V_REPLACE.Equals(sMoreArr[j].trim(), StringComparison.OrdinalIgnoreCase))
                             {
                                 moreInfo.IsDefaultValueValueReplace = true;//默认值必须值替换
                             }
-                            if (SqlKeyConfig.V_NO_QUOTATION_MARK.Equals(sMoreArr[j], StringComparison.OrdinalIgnoreCase))
+                            if (SqlKeyConfig.V_NO_QUOTATION_MARK.Equals(sMoreArr[j].trim(), StringComparison.OrdinalIgnoreCase))
                             {
                                 moreInfo.IsDefaultValueNoQuotationMark = true;//默认值不加引号
                             }

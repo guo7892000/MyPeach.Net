@@ -83,12 +83,13 @@ namespace org.breezee.MyPeachNet
          */
         public static SqlKeyValueEntity build(string sKeyString, IDictionary<string, Object> dicQuery, MyPeachNetProperties prop, bool isPreGetCondition = false)
         {
+            sKeyString = sKeyString.trim();
             SqlKeyValueEntity entity = new SqlKeyValueEntity();
             entity.KeyString = sKeyString;
             if (sKeyString.Contains("'"))
             {
                 entity.HasSingleQuotes = true;
-                sKeyString = sKeyString.Replace("'", "");
+                sKeyString = sKeyString.Replace("'", "").trim();
             }
             if (sKeyString.StartsWith("%"))
             {
@@ -134,11 +135,11 @@ namespace org.breezee.MyPeachNet
                 if (entity.KeyMoreInfo.IsDefaultValueValueReplace)
                 {
                     entity.KeyMoreInfo.MustValueReplace = true; //当没有传入值，且默认值为值替换时。当作是有传入默认值，且是替换
-                    inValue = entity.KeyMoreInfo.DefaultValue.Replace("'", "");//取默认值。为防止SQL注入，去掉单引号
+                    inValue = entity.KeyMoreInfo.DefaultValue.Replace("'", "").trim();//取默认值。为防止SQL注入，去掉单引号
                 }
                 else
                 {
-                    inValue = entity.KeyMoreInfo.DefaultValue;//取默认值：将作参数化，不需要替换掉引号
+                    inValue = entity.KeyMoreInfo.DefaultValue.trim();//取默认值：将作参数化，不需要替换掉引号
                 }
             }
 
