@@ -107,6 +107,11 @@ namespace org.breezee.MyPeachNet
             {
                 return true;
             }
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.selectPattern);//抽取出SELECT部分
+            if (mc.find())
+            {
+                return true;
+            }
             return false;
         }
     }

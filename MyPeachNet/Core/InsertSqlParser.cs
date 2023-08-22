@@ -156,7 +156,7 @@ namespace org.breezee.MyPeachNet
                 return sbHead.toString();
             }
             sb.append(sbHead.toString() + sbTail.toString());
-            return sSql;
+            return sb.ToString();
         }
 
         /// <summary>
@@ -176,15 +176,20 @@ namespace org.breezee.MyPeachNet
             {
                 return true;
             }
-            mc = ToolHelper.getMatcher(sSql, StaticConstants.valuesPattern);//抽取出INSERT INTO TABLE_NAME(部分
+            //Insert into...
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.insertIntoPattern);
             if (mc.find())
             {
-                return true;
-            }
-            mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
-            if (mc.find())
-            {
-                return true;
+                mc = ToolHelper.getMatcher(sSql, StaticConstants.valuesPattern);//抽取出INSERT INTO TABLE_NAME(部分
+                if (mc.find())
+                {
+                    return true;
+                }
+                mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
+                if (mc.find())
+                {
+                    return true;
+                }
             }
             return false;
         }

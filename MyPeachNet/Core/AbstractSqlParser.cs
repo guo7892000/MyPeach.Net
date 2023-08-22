@@ -690,7 +690,7 @@ namespace org.breezee.MyPeachNet
          * @param sSql
          * @return
          */
-        protected string generateParenthesesKey(string sSql)
+        public string generateParenthesesKey(string sSql)
         {
             MatchCollection mc;
             StringBuilder sb = new StringBuilder();
