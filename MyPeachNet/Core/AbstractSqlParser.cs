@@ -25,6 +25,7 @@ namespace org.breezee.MyPeachNet
      *   2023/08/13 BreezeeHui 增加注释中动态SQL的条件拼接；统一将参数转换为##形式，方便统一处理。增加MERGE INTO语句支持！
      *   2023/08/18 BreezeeHui 针对注释中动态SQL的条件拼接，在预获取条件参数时，把动态SQL中的键也加进去！
      *   2023/08/19 BreezeeHui 只有在非预获取条件参数，且传入条件为空时，才把默认值赋给传入条件值！
+     *   2023/08/24 BreezeeHui 修正子查询或之后中有多个()转换错误问题；修正SELECT有#参数#时转换错误问题。
      */
     public abstract class AbstractSqlParser
     {
@@ -858,7 +859,21 @@ namespace org.breezee.MyPeachNet
             MatchCollection mcWhere = ToolHelper.getMatcher(sSql, StaticConstants.wherePattern);
             if (!mcWhere.find())
             {
-                return sb.toString();
+                //没有Where，那就是直接SELECT部分
+                if (!hasKey(sSql))
+                {
+                    return sSql; //没有参数时直接返回
+                }
+                //有键
+                string[] keyList = sSql.split(",");
+                int iCount = 0;
+                foreach (string item in keyList)
+                {
+                    string sValue = iCount == 0 ? "" : ",";
+                    sb.append(sValue + singleKeyConvert(item));
+                    iCount++;
+                }
+                return sb.ToString();
             }
 
             //sb.append(sSql.substring(0,mcWhere.start()));//确定FROM部分
@@ -1064,6 +1079,7 @@ namespace org.breezee.MyPeachNet
             //比如WITH...INSERT INTO...SELECT和INSERT INTO...WITH...INSERT INTO...
             string sSource = "";
             string sReturn = string.Empty;
+            int iLastStart = 0;
             while (hasFirstMatcher)
             {
                 sSource = mapsParentheses.get(mc.group());//取出 ##序号## 内容
@@ -1083,10 +1099,12 @@ namespace org.breezee.MyPeachNet
                     if (!hasKey(sConnect))
                     {
                         //2.2 合并后也没有键，则直接追加到头部字符构建器
-                        return sConnect;
+                        sb.Append(sConnect);
+                        return sb.toString();
                     }
                     //2.3 如果有键传入，那么进行单个键转换
-                    return singleKeyConvert(sConnect);
+                    sb.Append(singleKeyConvert(sConnect));
+                    return sb.toString();
                 }
 
                 //判断是否所有键为空
@@ -1101,14 +1119,28 @@ namespace org.breezee.MyPeachNet
                     }
                 }
 
-                string sPre = sSql.substring(0, mc.start());
-                string sEnd = sSql.substring(mc.end());
+                string sPre = sSql.substring(iLastStart, mc.start());
+                iLastStart = mc.end();
+                string sEnd = sSql.substring(iLastStart); //注：后续部分还可能用##序号##
 
                 //3、子查询处理
-                string sChildQuery = childQueryConvert(sLastAndOr + sPre, sEnd, sSource);
+                string sChildQuery = childQueryConvert(sLastAndOr + sPre, "", sSource);//这里先不把结束字符加上
                 sb.append(sChildQuery);//加上子查询
                 if (allKeyNull || ToolHelper.IsNotNull(sChildQuery))
                 {
+                    //取出下个匹配##序号##的键，如果有，那么继续下个循环去替换##序号##
+                    hasFirstMatcher = mc.find();
+                    if (hasFirstMatcher)
+                    {
+                        //继续取出##序号##键的值来替换
+                        sSqlNew = sEnd;//剩余部分将要被处理
+                        continue;
+                    }
+                    else
+                    {
+                        sb.append(sEnd);//这里把结束字符加上
+                    }
+
                     sReturn = sb.toString();
                     foreach (string sKey in dicReplace.Keys)
                     {
@@ -1116,7 +1148,10 @@ namespace org.breezee.MyPeachNet
                     }
                     return sReturn;//如果全部参数为空，或者子查询已处理，直接返回
                 }
-                //4、有键值传入，并且非子查询，做AND或OR正则匹配分拆字符
+
+                //4、非子查询的处理
+                sb.append(sEnd);//这里把结束字符加上
+                //有键值传入，并且非子查询，做AND或OR正则匹配分拆字符
                 sb.append(sLastAndOr + sPre);//因为不能移除"()"，所以这里先拼接收"AND"或"OR"，记得加上头部字符
 
                 //AND或OR正则匹配处理
