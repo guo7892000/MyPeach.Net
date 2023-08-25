@@ -14,17 +14,19 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/14 16:23
+     * 2023/08/24 BreezeeHui IsNotNull和IsNull增加IsNullOrWhiteSpace判断。
      */
     public class ToolHelper
     {
         public static bool IsNotNull(object obj)
         {
-            return obj != null && !string.IsNullOrEmpty(obj.ToString());
+            return obj != null && !string.IsNullOrWhiteSpace(obj.ToString().trim()) && !string.IsNullOrEmpty(obj.ToString().trim());
         }
         public static bool IsNull(object obj)
         {
-            return obj == null || string.IsNullOrEmpty(obj.ToString());
+            return obj == null || string.IsNullOrWhiteSpace(obj.ToString().trim()) || string.IsNullOrEmpty(obj.ToString().trim());
         }
+
         /**
          * 获取键名（不含前后缀，但含更多信息）
          * @param sKeyString

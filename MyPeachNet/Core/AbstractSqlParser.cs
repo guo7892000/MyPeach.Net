@@ -25,7 +25,7 @@ namespace org.breezee.MyPeachNet
      *   2023/08/13 BreezeeHui 增加注释中动态SQL的条件拼接；统一将参数转换为##形式，方便统一处理。增加MERGE INTO语句支持！
      *   2023/08/18 BreezeeHui 针对注释中动态SQL的条件拼接，在预获取条件参数时，把动态SQL中的键也加进去！
      *   2023/08/19 BreezeeHui 只有在非预获取条件参数，且传入条件为空时，才把默认值赋给传入条件值！
-     *   2023/08/24 BreezeeHui 修正子查询或之后中有多个()转换错误问题；修正SELECT有#参数#时转换错误问题。
+     *   2023/08/24 BreezeeHui 修正子查询或之后中有多个()转换错误问题；修正SELECT有#参数#时转换错误问题；修正WITH正则式。
      */
     public abstract class AbstractSqlParser
     {
@@ -81,7 +81,7 @@ namespace org.breezee.MyPeachNet
             }
             parenthesesRoundKeyPattern = parenthesesRoundKey + "\\d+" + parenthesesRoundKey;
             //因为括号已被替换为##序号##，所以原正则式已不能使用："\\)?\\s*,?\\s*WITH\\s+\\w+\\s+AS\\s*\\("+commonSelectPattern;
-            insertIntoWithSelectPartnCommon = "\\s*,?\\s*WITH\\s+\\w+\\s+AS\\s";
+            insertIntoWithSelectPartnCommon = @"\s*,?\s*(WITH)*\s+\w+\s+AS\s"; //注：这里的WITH只是第一个临时表有，后面的是没有的
             withSelectPartn = insertIntoWithSelectPartnCommon + "+" + parenthesesRoundKeyPattern;
             /*最终正则式：^\s*,?\s*WITH\s+\w+\s+AS\s*##\d+##\s*INSERT\s+INTO\s+\S+\s*##\d+##*/
             withInsertIntoSelectPartn = "^" + insertIntoWithSelectPartnCommon+"*" + parenthesesRoundKeyPattern +"\\s*"
@@ -524,8 +524,8 @@ namespace org.breezee.MyPeachNet
                         //大于等于：使用整型比较
                         sOperateStr = ">=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(0, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             int iCondValue = int.Parse(dic[sKey].ToString());
@@ -542,8 +542,8 @@ namespace org.breezee.MyPeachNet
                         //小于等于：使用整型比较
                         sOperateStr = "<=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(0, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             int iCondValue = int.Parse(dic[sKey].ToString());
@@ -560,8 +560,8 @@ namespace org.breezee.MyPeachNet
                         //小于：使用整型比较
                         sOperateStr = "<";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(0, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             int iCondValue = int.Parse(dic[sKey].ToString());
@@ -578,8 +578,8 @@ namespace org.breezee.MyPeachNet
                         //大于：使用整型比较
                         sOperateStr = ">";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(0, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             int iCondValue = int.Parse(dic[sKey].ToString());
@@ -596,8 +596,8 @@ namespace org.breezee.MyPeachNet
                         //等于：使用字符比较
                         sOperateStr = "=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(0, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             return sValue.equals(dic[sKey].ToString()) ? sDynSql : "";
@@ -612,8 +612,8 @@ namespace org.breezee.MyPeachNet
                         //不等于：使用字符比较
                         sOperateStr = "!=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(0, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             return sValue.equals(dic[sKey].ToString()) ? "" : sDynSql;
@@ -628,8 +628,8 @@ namespace org.breezee.MyPeachNet
                         //不等于：使用字符比较
                         sOperateStr = "<>";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(0, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             return sValue.equals(dic[sKey].ToString()) ? "" : sDynSql;
