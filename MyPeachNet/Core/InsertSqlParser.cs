@@ -51,15 +51,22 @@ namespace org.breezee.MyPeachNet
         /// <param name="sSql"></param>
         /// <returns></returns>
         private string withInsertIntoSelect(string sSql,StringBuilder sbHead)
-        {;
-            MatchCollection mc = ToolHelper.getMatcher(sSql, withInsertIntoSelectPartn);//抽取出INSERT INTO TABLE_NAME(部分
+        {
+            MatchCollection mc = ToolHelper.getMatcher(sSql, withInsertIntoSelectPartn);
             while (mc.find())
             {
                 sqlTypeEnum = SqlTypeEnum.WITH_INSERT_SELECT;
                 string sInsert = sSql.substring(0, mc.start()) + mc.group();
                 sInsert = complexParenthesesKeyConvert(sInsert, "");
-                sbHead.append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
+                sbHead.append(sInsert + System.Environment.NewLine);
                 sSql = sSql.substring(mc.end()).trim();
+                //UNION 或 UNION ALL的处理
+                sSql = unionOrUnionAllConvert(sSql, sbHead);
+                if (ToolHelper.IsNull(sSql))
+                {
+                    return "";
+                }
+                //非UNION 且 非UNION ALL的处理
                 //FROM段处理
                 string sFinalSql = fromWhereSqlConvert(sSql, false);
                 sbHead.append(sFinalSql);
@@ -75,14 +82,21 @@ namespace org.breezee.MyPeachNet
         /// <returns></returns>
         private string insertIntoWithSelect(string sSql, StringBuilder sbHead)
         {
-            MatchCollection mc = ToolHelper.getMatcher(sSql, insertIntoWithSelectPartn);//抽取出INSERT INTO TABLE_NAME(部分
+            MatchCollection mc = ToolHelper.getMatcher(sSql, insertIntoWithSelectPartn);
             while (mc.find())
             {
                 sqlTypeEnum = SqlTypeEnum.INSERT_WITH_SELECT;
                 string sInsert = sSql.substring(0, mc.start()) + mc.group();
                 sInsert = complexParenthesesKeyConvert(sInsert, "");
-                sbHead.append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
+                sbHead.append(sInsert + System.Environment.NewLine);
                 sSql = sSql.substring(mc.end()).trim();
+                //UNION 或 UNION ALL的处理
+                sSql = unionOrUnionAllConvert(sSql, sbHead);
+                if (ToolHelper.IsNull(sSql))
+                {
+                    return sbHead.toString();
+                }
+                //非UNION 且 非UNION ALL的处理
                 //FROM段处理
                 string sFinalSql = fromWhereSqlConvert(sSql, false);
                 sbHead.append(sFinalSql);
@@ -137,14 +151,21 @@ namespace org.breezee.MyPeachNet
             else
             {
                 //4、INSERT INTO TABLE_NAME 。。 SELECT形式
-                mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
+                mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);
                 if (mc.find())
                 {
                     sqlTypeEnum = SqlTypeEnum.INSERT_SELECT;
-                    string sInsert = sSql.substring(0, mc.start()) + mc.group();
+                    string sInsert = sSql.substring(0, mc.start());
                     sInsert = complexParenthesesKeyConvert(sInsert, "");
-                    sbHead.append(sInsert);//不变的INSERT INTO TABLE_NAME(部分先加入
-                    sSql = sSql.substring(mc.end()).trim();
+                    sbHead.append(sInsert);
+                    sSql = mc.group() + sSql.substring(mc.end()).trim();
+                    //UNION 或 UNION ALL的处理
+                    sSql = unionOrUnionAllConvert(sSql, sbHead);
+                    if (ToolHelper.IsNull(sSql))
+                    {
+                        return sbHead.toString();
+                    }
+                    //非UNION 且 非UNION ALL的处理
                     //FROM段处理
                     string sFinalSql = fromWhereSqlConvert(sSql, false);
                     sbHead.append(sFinalSql);
@@ -166,12 +187,12 @@ namespace org.breezee.MyPeachNet
         /// <returns></returns>
         public override bool isRightSqlType(string sSql)
         {
-            MatchCollection mc = ToolHelper.getMatcher(sSql, withInsertIntoSelectPartn);//抽取出INSERT INTO TABLE_NAME(部分
+            MatchCollection mc = ToolHelper.getMatcher(sSql, withInsertIntoSelectPartn);
             if (mc.find())
             {
                 return true;
             }
-            mc = ToolHelper.getMatcher(sSql, insertIntoWithSelectPartn);//抽取出INSERT INTO TABLE_NAME(部分
+            mc = ToolHelper.getMatcher(sSql, insertIntoWithSelectPartn);
             if (mc.find())
             {
                 return true;
@@ -180,12 +201,12 @@ namespace org.breezee.MyPeachNet
             mc = ToolHelper.getMatcher(sSql, StaticConstants.insertIntoPattern);
             if (mc.find())
             {
-                mc = ToolHelper.getMatcher(sSql, StaticConstants.valuesPattern);//抽取出INSERT INTO TABLE_NAME(部分
+                mc = ToolHelper.getMatcher(sSql, StaticConstants.valuesPattern);
                 if (mc.find())
                 {
                     return true;
                 }
-                mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);//抽取出INSERT INTO TABLE_NAME(部分
+                mc = ToolHelper.getMatcher(sSql, StaticConstants.commonSelectPattern);
                 if (mc.find())
                 {
                     return true;

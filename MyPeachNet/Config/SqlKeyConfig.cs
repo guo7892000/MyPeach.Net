@@ -49,6 +49,5 @@ namespace MyPeach.Net
 
         //MyPeach系统标签：动态SQL标志字符
         public static readonly string dynamicSqlRemarkFlagString = @"@MP&DYN";
-
     }
 }

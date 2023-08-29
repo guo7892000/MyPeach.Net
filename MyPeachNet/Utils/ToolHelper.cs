@@ -14,7 +14,7 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/14 16:23
-     * 2023/08/24 BreezeeHui IsNotNull和IsNull增加IsNullOrWhiteSpace判断。
+     *    2023/08/24 BreezeeHui IsNotNull和IsNull增加IsNullOrWhiteSpace判断。
      */
     public class ToolHelper
     {
@@ -102,6 +102,21 @@ namespace org.breezee.MyPeachNet
             sSql = sSql.EndsWith(")") ? sSql.Substring(0, sSql.Length - 1) : sSql;
 
             return sSql;
+        }
+
+        /// <summary>
+        /// 获取整型值
+        /// </summary>
+        /// <param name="sInt">要转换的字符</param>
+        /// <param name="iDefault">默认值</param>
+        /// <returns>根据传入字符转换，成功则取转换后值，否则取默认值</returns>
+        public static int getInt(string sInt,int iDefault)
+        {
+            if(int.TryParse(sInt, out int result))
+            {
+                return result;
+            }
+            return iDefault;
         }
     }
 }

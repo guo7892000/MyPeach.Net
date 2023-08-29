@@ -15,14 +15,10 @@ namespace org.breezee.MyPeachNet
      * @date: 2022/4/12 16:45
      * @history:
      *   2023/08/18 BreezeeHui 取消KeyStyle的设置，默认都支持#{参数}和#参数#两种方式，只是在处理过程中，会将#{}转换为#参数#后，再统一处理。
+     *   2023/08/27 BreezeeHui 增加IN清单的最大项数配置，默认为1000。
      */
     public class MyPeachNetProperties
     {
-        /// <summary>
-        /// SQL中键的样式枚举
-        /// </summary>
-        //public SqlKeyStyleEnum KeyStyle { get; set; } = SqlKeyStyleEnum.POUND_SIGN_AROUND;
-
         /// <summary>
         /// 名称：参数化的前缀（Sql param prefix）
         /// 描述：在TargetSqlEnum为param时使用。
@@ -30,7 +26,7 @@ namespace org.breezee.MyPeachNet
         public string ParamPrefix { get; set; } = "@";
 
         /// <summary>
-        /// 名称：参数化的前缀（Sql param suffix）
+        /// 名称：参数化的后缀（Sql param suffix）
         /// 描述：在TargetSqlEnum为param时使用。
         /// </summary>
         public string ParamSuffix { get; set; } = "";
@@ -43,8 +39,9 @@ namespace org.breezee.MyPeachNet
         /// <summary>
         /// 名称：生成的SQL类型
         /// 描述：
-        /// TargetSqlEnum.param：参数化的SQL，默认
-        /// TargetSqlEnum.directRun：转换为可以直接运行的SQL，SQL中的键已被替换为具体值。注：此方式可能存在SQL注入风险！！
+        /// TargetSqlEnum.NameParam：命名参数化的SQL，默认
+        /// TargetSqlEnum.PositionParam：位置参数化
+        /// TargetSqlEnum.DIRECT_RUN：转换为可以直接运行的SQL，SQL中的键已被替换为具体值。注：此方式可能存在SQL注入风险！！
         /// </summary>
         public TargetSqlParamTypeEnum TargetSqlParamTypeEnum { get; set; } = TargetSqlParamTypeEnum.NameParam;
 
@@ -57,7 +54,10 @@ namespace org.breezee.MyPeachNet
         /// 注：相对路径时，开头不要加/，要以文件名开头。
         /// </summary>
         public string logSqlPath = "";
-
+        /// <summary>
+        /// IN清单的最大项数配置
+        /// </summary>
+        public int inMax = 1000;
 
         #region 为了复制过来的java代码能直接使用而增加的方法
         /// <summary>

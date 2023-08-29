@@ -13,6 +13,7 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/12 16:45
+     * @history:
      */
     public enum SqlTypeEnum
     {

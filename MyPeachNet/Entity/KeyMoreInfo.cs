@@ -35,6 +35,10 @@ namespace org.breezee.MyPeachNet
             set { Nullable = !value;} 
         }
         public string InString { get; set; } = string.Empty;
+        /// <summary>
+        /// In条件中的列名：注列名也可以是有函数转换，虽然那样的SQL不推荐
+        /// </summary>
+        public string InColumnName { get; set; } = string.Empty;
 
         /// <summary>
         /// 是否优先使用的配置（默认否）
@@ -57,6 +61,10 @@ namespace org.breezee.MyPeachNet
         /// 值不加引号：默认都加上。不要时可设置为ture
         /// </summary>
         public bool IsNoQuotationMark = false;
+        /// <summary>
+        /// 每次In清单项最大值，超过该值后会拆分成多个OR IN ('','')
+        /// </summary>
+        public int PerInListMax = 0;
         /**
          * 构建【键更多信息】对象
          * @param sKeyMore 键更多信息字符，例如：CITY_NAME:N
@@ -91,10 +99,18 @@ namespace org.breezee.MyPeachNet
                 else if (SqlKeyConfig.STRING_LIST.Equals(sOne, StringComparison.OrdinalIgnoreCase))  //字符列表
                 {
                     listConvert(objValue, moreInfo, true);
+                    if (sMoreArr.Length > 1)
+                    {
+                        moreInfo.PerInListMax = ToolHelper.getInt(sMoreArr[1],0);
+                    }
                 }
                 else if (SqlKeyConfig.INTEGE_LIST.Equals(sOne, StringComparison.OrdinalIgnoreCase)) //整型列表
                 {
                     listConvert(objValue, moreInfo, false);
+                    if (sMoreArr.Length > 1)
+                    {
+                        moreInfo.PerInListMax = ToolHelper.getInt(sMoreArr[1], 0);
+                    }
                 }
                 else if (SqlKeyConfig.V_DEFAULT.Equals(sOne, StringComparison.OrdinalIgnoreCase)) //默认值
                 {
