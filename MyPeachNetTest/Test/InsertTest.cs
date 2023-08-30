@@ -47,10 +47,13 @@ namespace MyPeachNetTest
             string sSql = @"/*SqlServer:必须是with在INSERT INTO之前*/
 with TMP_A AS(select #SORT_ID# as id,'#TFLAG#' as name)
 INSERT INTO TEST_TABLE(ID,CNAME)
-select * from TMP_A";
+select * from TMP_A
+UNION 
+select 2,'zhangsan' from TMP_A
+where ID = '#ID#'";
             //dicQuery.put("PROVINCE_ID","张三");
             //dicQuery.put("#PROVINCE_CODE#","BJ");
-            //dicQuery.put("#PROVINCE_NAME#","北京");
+            dicQuery.put("#ID#","北京");
             dicQuery.put("#SORT_ID#", 1);//必须
             dicQuery.put("#TFLAG#", 1);
             ParserResult result = sqlParsers.parse(SqlTypeEnum.WITH_INSERT_SELECT, sSql, dicQuery);
@@ -64,10 +67,13 @@ select * from TMP_A";
             //string sSql = File.ReadAllText(Path.Combine(sPath, "Insert", "04_InsertWithSelect.txt"));
             string sSql = @"INSERT INTO TEST_TABLE(ID,CNAME)
 with TMP_A AS(select #SORT_ID# as id,'#TFLAG#' as name FROM DUAL)
-select * from TMP_A";
+select * from TMP_A
+UNION ALL
+select 2,'zhangsan' from TMP_A
+where PROVINCE_NAME = '#PROVINCE_NAME#'";
             //dicQuery.put("PROVINCE_ID","张三");
             //dicQuery.put("#PROVINCE_CODE#","BJ");
-            //dicQuery.put("#PROVINCE_NAME#","北京");
+            dicQuery.put("#PROVINCE_NAME#","北京");
             dicQuery.put("#SORT_ID#", 1);//必须
             dicQuery.put("#TFLAG#", 1);
             ParserResult result = sqlParsers.parse(SqlTypeEnum.INSERT_WITH_SELECT, sSql, dicQuery);

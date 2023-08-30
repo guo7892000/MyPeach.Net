@@ -34,9 +34,9 @@ namespace org.breezee.MyPeachNet
         {
             return s.Trim();
         }
-        public static string[] split(this string s,string? sperate)
+        public static string[] split(this string s,string sperate)
         {
-            return s.Split(sperate);
+            return s.Split(sperate.ToCharArray());
         }
 
         public static bool isEmpty(this string s)

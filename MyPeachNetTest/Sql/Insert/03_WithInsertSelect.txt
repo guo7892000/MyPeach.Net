@@ -1,0 +1,6 @@
+/*SqlServer:必须是with在INSERT INTO之前*/
+with TMP_A AS(select #SORT_ID# as id,'#TFLAG#' as name)
+INSERT INTO TEST_TABLE(ID,CNAME)
+select * from TMP_A
+UNION 
+select 2,'zhangsan' from TMP_A

@@ -14,17 +14,19 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/14 16:23
+     *    2023/08/24 BreezeeHui IsNotNull和IsNull增加IsNullOrWhiteSpace判断。
      */
     public class ToolHelper
     {
         public static bool IsNotNull(object obj)
         {
-            return obj != null && !string.IsNullOrEmpty(obj.ToString());
+            return obj != null && !string.IsNullOrWhiteSpace(obj.ToString().trim()) && !string.IsNullOrEmpty(obj.ToString().trim());
         }
         public static bool IsNull(object obj)
         {
-            return obj == null || string.IsNullOrEmpty(obj.ToString());
+            return obj == null || string.IsNullOrWhiteSpace(obj.ToString().trim()) || string.IsNullOrEmpty(obj.ToString().trim());
         }
+
         /**
          * 获取键名（不含前后缀，但含更多信息）
          * @param sKeyString
@@ -33,15 +35,15 @@ namespace org.breezee.MyPeachNet
          */
         public static string getKeyNameMore(string sKeyString, MyPeachNetProperties prop)
         {
-            string keyPrefix = "#";
-            string keySuffix = "#";
-            if (prop.KeyStyle == SqlKeyStyleEnum.POUND_SIGN_BRACKETS)
-            {
-                keyPrefix = StaticConstants.HASH_LEFT_BRACE;
-                keySuffix = StaticConstants.RIGHT_BRACE;
-            }
+            string keyPrefix = StaticConstants.HASH;
+            string keySuffix = StaticConstants.HASH;
+            //if (prop.KeyStyle == SqlKeyStyleEnum.POUND_SIGN_BRACKETS)
+            //{
+            //    keyPrefix = StaticConstants.HASH_LEFT_BRACE;
+            //    keySuffix = StaticConstants.RIGHT_BRACE;
+            //}
             string sKeyNameMore = sKeyString.Replace("'", "").Replace("%", "")
-                    .Replace(keyPrefix, "").Replace(keySuffix, "");
+                    .Replace(keyPrefix, "").Replace(keySuffix, "").trim();
             return sKeyNameMore;//键中包含其他信息
         }
 
@@ -56,11 +58,11 @@ namespace org.breezee.MyPeachNet
             string sKeyNameMore = getKeyNameMore(sKeyString, prop);
             if (sKeyNameMore.IndexOf(":") < 0)
             {
-                return sKeyNameMore;//键中没有包含其他信息
+                return sKeyNameMore.trim();//键中没有包含其他信息
             }
             else
             {
-                return sKeyNameMore.Split(":")[0];//键中包含其他信息，但第一个必须是键名
+                return sKeyNameMore.Split(':')[0].trim();//键中包含其他信息，但第一个必须是键名
             }
         }
 
@@ -100,6 +102,21 @@ namespace org.breezee.MyPeachNet
             sSql = sSql.EndsWith(")") ? sSql.Substring(0, sSql.Length - 1) : sSql;
 
             return sSql;
+        }
+
+        /// <summary>
+        /// 获取整型值
+        /// </summary>
+        /// <param name="sInt">要转换的字符</param>
+        /// <param name="iDefault">默认值</param>
+        /// <returns>根据传入字符转换，成功则取转换后值，否则取默认值</returns>
+        public static int getInt(string sInt,int iDefault)
+        {
+            if(int.TryParse(sInt, out int result))
+            {
+                return result;
+            }
+            return iDefault;
         }
     }
 }

@@ -13,6 +13,8 @@ using System.Threading.Tasks;
  * @date: 2022/4/12 16:45
  * @history:
  *   2023/07/21 BreezeeHui 针对Like的前后模糊查询，其键值也相应增加%，以支持模糊查询
+ *   2023/08/18 BreezeeHui 参数前后缀只取#参数#；当条件不传值时，取默认值，根据默认值是否必须值替换来决定值必须值替换。
+ *   2023/08/30 BreezeeHui 针对InString值，如配置为不加引号，那么也把值中的引号去掉。
  */
 namespace org.breezee.MyPeachNet
 {
@@ -80,14 +82,15 @@ namespace org.breezee.MyPeachNet
          * @param prop
          * @return
          */
-        public static SqlKeyValueEntity build(string sKeyString, IDictionary<string, Object> dicQuery, MyPeachNetProperties prop)
+        public static SqlKeyValueEntity build(string sKeyString, IDictionary<string, Object> dicQuery, MyPeachNetProperties prop, bool isPreGetCondition = false)
         {
+            sKeyString = sKeyString.trim();
             SqlKeyValueEntity entity = new SqlKeyValueEntity();
             entity.KeyString = sKeyString;
             if (sKeyString.Contains("'"))
             {
                 entity.HasSingleQuotes = true;
-                sKeyString = sKeyString.Replace("'", "");
+                sKeyString = sKeyString.Replace("'", "").trim();
             }
             if (sKeyString.StartsWith("%"))
             {
@@ -105,15 +108,7 @@ namespace org.breezee.MyPeachNet
             entity.KeyName = sParamName;
             entity.ParamString = prop.ParamPrefix + sParamName + prop.ParamSuffix;
 
-            string sParamNamePreSuffix;
-            if (prop.KeyStyle == SqlKeyStyleEnum.POUND_SIGN_BRACKETS)
-            {
-                sParamNamePreSuffix = StaticConstants.HASH_LEFT_BRACE + sParamName + StaticConstants.RIGHT_BRACE;
-            }
-            else
-            {
-                sParamNamePreSuffix = StaticConstants.HASH + sParamName + StaticConstants.HASH;
-            }
+            string sParamNamePreSuffix = StaticConstants.HASH + sParamName + StaticConstants.HASH;
 
             object inValue = null;
             if (dicQuery.ContainsKey(sParamName) && ToolHelper.IsNotNull(dicQuery[sParamName]))
@@ -131,17 +126,33 @@ namespace org.breezee.MyPeachNet
             {
                 entity.HasSingleQuotes = false; //重新根据配置来去掉引号
             }
-            //值为空，且默认值不为空才赋值
-            if (inValue == null && entity.KeyMoreInfo.DefaultValue!=null && !string.IsNullOrWhiteSpace(entity.KeyMoreInfo.DefaultValue))
+            //使用默认值条件：条件传入值为空，非预获取参数，默认值不为空
+            if (inValue == null && !isPreGetCondition && entity.KeyMoreInfo.DefaultValue != null && !string.IsNullOrWhiteSpace(entity.KeyMoreInfo.DefaultValue))
             {
-                inValue = entity.KeyMoreInfo.DefaultValue;//取默认值
                 if (entity.KeyMoreInfo.IsDefaultValueNoQuotationMark)
                 {
                     entity.HasSingleQuotes = false;
                 }
+                if (entity.KeyMoreInfo.IsDefaultValueValueReplace)
+                {
+                    entity.KeyMoreInfo.MustValueReplace = true; //当没有传入值，且默认值为值替换时。当作是有传入默认值，且是替换
+                    inValue = entity.KeyMoreInfo.DefaultValue.Replace("'", "").trim();//取默认值。为防止SQL注入，去掉单引号
+                }
+                else
+                {
+                    inValue = entity.KeyMoreInfo.DefaultValue.trim();//取默认值：将作参数化，不需要替换掉引号
+                }
             }
 
-            if (inValue != null)
+            if (inValue == null || string.IsNullOrEmpty(inValue.ToString()))
+            {
+                if (!entity.KeyMoreInfo.Nullable)
+                {
+                    entity.ErrorMessage = "键(" + entity.KeyName + ")的值没有传入。";
+                }
+                
+            }
+            else
             {
                 entity.KeyValue = inValue;
                 entity.ReplaceKeyWithValue = inValue;
@@ -161,13 +172,13 @@ namespace org.breezee.MyPeachNet
                     entity.ReplaceKeyWithValue = "'" + entity.ReplaceKeyWithValue + "'";
                 }
             }
-            else
+            //针对In清单中单引号的处理
+            string sInString = entity.getKeyMoreInfo().getInString();
+            if (!string.IsNullOrEmpty(sInString) && !entity.HasSingleQuotes)
             {
-                if (!entity.KeyMoreInfo.Nullable)
-                {
-                    entity.ErrorMessage = "键(" + entity.KeyName + ")的值没有传入。";
-                }
+                entity.getKeyMoreInfo().InString = sInString.Replace("'", "").trim();//去掉IN清单字符中的引号
             }
+
             return entity;
         }
 

@@ -2,6 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -22,15 +25,15 @@ namespace org.breezee.MyPeachNet
      *   2023/08/05 BreezeeHui 增加#号注释支持；修正/**\/注释的匹配与移除。
      *   2023/08/10 BreezeeHui 将移除注释抽成一个独立方法RemoveSqlRemark；增加SQL类型是否正确的抽象方法isRightSqlType。
      *   2023/08/13 BreezeeHui 增加注释中动态SQL的条件拼接；统一将参数转换为##形式，方便统一处理。增加MERGE INTO语句支持！
+     *   2023/08/18 BreezeeHui 针对注释中动态SQL的条件拼接，在预获取条件参数时，把动态SQL中的键也加进去！
+     *   2023/08/19 BreezeeHui 只有在非预获取条件参数，且传入条件为空时，才把默认值赋给传入条件值！
+     *   2023/08/24 BreezeeHui 修正子查询或之后中有多个()转换错误问题；修正SELECT有#参数#时转换错误问题；修正WITH正则式。
+     *   2023/08/25 BreezeeHui 将unionOrUnionAllConvert抽取到父类中，方便针对所有SELECT语句先做union或Union All分析。
+     *   2023/08/30 BreezeeHui 增加对IN配置多少项（默认1000）后分拆成AND (XX IN ('值1','值2') OR XX IN ('值N1','值N2'))。
      */
     public abstract class AbstractSqlParser
     {
         protected MyPeachNetProperties myPeachProp;
-        //protected string keyPrefix = "#";
-        //protected string keySuffix = "#";
-        //protected string keyPattern;//键正则式
-        protected string keyPatternHashLeftBrace;//键正则式##
-        protected string keyPatternHash;//键正则式#{}
 
         /**
          * 优先处理的括号会被替换的两边字符加中间一个序号值，例如：##1##
@@ -75,22 +78,6 @@ namespace org.breezee.MyPeachNet
         public AbstractSqlParser(MyPeachNetProperties prop)
         {
             myPeachProp = prop;
-            //参数形式
-            keyPatternHashLeftBrace = "'?%?\\#\\{\\w+(:\\w+(-\\w+)?)*\\}%?'?";//键正则式，注这里针对#{}都要加上转义符，否则会报错！！
-            keyPatternHash = "'?%?" + StaticConstants.HASH + "\\w+(:\\w+(-\\w+)?)*" + StaticConstants.HASH + "%?'?";//键正则式
-
-            //if (prop.getKeyStyle() == SqlKeyStyleEnum.POUND_SIGN_BRACKETS)
-            //{
-            //    keyPrefix = StaticConstants.HASH_LEFT_BRACE;
-            //    keySuffix = StaticConstants.RIGHT_BRACE;
-            //    keyPattern = keyPatternHashLeftBrace;
-            //}
-            //else
-            //{
-            //    keyPrefix = StaticConstants.HASH;
-            //    keySuffix = StaticConstants.HASH;
-            //    keyPattern = keyPatternHash;
-            //}
             
             if (parenthesesRoundKey.equals(StaticConstants.HASH))
             {
@@ -98,7 +85,7 @@ namespace org.breezee.MyPeachNet
             }
             parenthesesRoundKeyPattern = parenthesesRoundKey + "\\d+" + parenthesesRoundKey;
             //因为括号已被替换为##序号##，所以原正则式已不能使用："\\)?\\s*,?\\s*WITH\\s+\\w+\\s+AS\\s*\\("+commonSelectPattern;
-            insertIntoWithSelectPartnCommon = "\\s*,?\\s*WITH\\s+\\w+\\s+AS\\s";
+            insertIntoWithSelectPartnCommon = @"\s*,?\s*(WITH)*\s+\w+\s+AS\s"; //注：这里的WITH只是第一个临时表有，后面的是没有的
             withSelectPartn = insertIntoWithSelectPartnCommon + "+" + parenthesesRoundKeyPattern;
             /*最终正则式：^\s*,?\s*WITH\s+\w+\s+AS\s*##\d+##\s*INSERT\s+INTO\s+\S+\s*##\d+##*/
             withInsertIntoSelectPartn = "^" + insertIntoWithSelectPartnCommon+"*" + parenthesesRoundKeyPattern +"\\s*"
@@ -120,23 +107,40 @@ namespace org.breezee.MyPeachNet
         /// 预获取SQL参数（方便给参数赋值用于测试）
         /// </summary>
         /// <param name="sSql"></param>
+        /// <param name="dic"></param>
         /// <returns></returns>
-        public  IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql, IDictionary<string, object> dic)
+        public IDictionary<string, SqlKeyValueEntity> PreGetParam(string sSql, IDictionary<string, object> dic)
         {
             IDictionary<string, SqlKeyValueEntity> dicReturn = new Dictionary<string, SqlKeyValueEntity>();
             //条件键优化
             IDictionary<string, object> dicNew = conditionKeyOptimize(dic);
             //1、移除所有注释
-            string sSqlNew = RemoveSqlRemark(sSql, dicNew);
+            string sSqlNew = RemoveSqlRemark(sSql, dicNew,true);
             //2、获取SQL中的#参数#
-            MatchCollection mc = ToolHelper.getMatcher(sSqlNew, keyPatternHash);
+            MatchCollection mc = ToolHelper.getMatcher(sSqlNew, StaticConstants.keyPatternHash);
             while (mc.find())
             {
                 string sParamName = ToolHelper.getKeyName(mc.group(), myPeachProp);
-                SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), new Dictionary<string, object>(), myPeachProp);
+                SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), new Dictionary<string, object>(), myPeachProp,true);
                 if (!dicReturn.ContainsKey(sParamName))
                 {
                     dicReturn[sParamName] = param;
+                }
+            }
+            //将动态条件拼接SQL段的键加入，方便测试
+            foreach (string sKey in dicNew.Keys)
+            {
+                if (sKey.startsWith(StaticConstants.dynConditionKeyPre))
+                {
+                    string sRealKey = sKey.replace(StaticConstants.dynConditionKeyPre, "");
+                    if(!string.IsNullOrEmpty(sRealKey) && !dicReturn.ContainsKey(sRealKey))
+                    {
+                        SqlKeyValueEntity entity = new SqlKeyValueEntity();
+                        entity.KeyName = sRealKey; //目前外部只用到一个键名
+                        entity.KeyValue = dicNew[sKey];
+                        entity.HasValue = true;
+                        dicReturn.Add(sRealKey, entity);
+                    }
                 }
             }
             return dicReturn;
@@ -147,14 +151,14 @@ namespace org.breezee.MyPeachNet
         /// </summary>
         /// <param name="dic"></param>
         /// <returns></returns>
-        private static IDictionary<string, object> conditionKeyOptimize(IDictionary<string, object> dic)
+        private  IDictionary<string, object> conditionKeyOptimize(IDictionary<string, object> dic)
         {
             //1、对传入的条件集合中的KEY进行优化：如去掉#号，如有：分隔，那么取第一个值作为键
             IDictionary<string, object> dicNew = new Dictionary<string, object>();
             foreach (string key in dic.Keys)
             {
                 string sKeyNew = key.replace("#", "").replace("{", "").replace("}", "");
-                sKeyNew = sKeyNew.split(":")[0];
+                sKeyNew = sKeyNew.Split(StaticConstants.keyBigTypeSpit)[0].trim(); //去掉前后空格
                 dicNew.put(sKeyNew, dic.get(key));
             }
             return dicNew;
@@ -261,11 +265,14 @@ namespace org.breezee.MyPeachNet
         /// <param name="dicNew"></param>
         private void getAllParamKey(string sSql, IDictionary<string, object> dicNew)
         {
-            MatchCollection mc = ToolHelper.getMatcher(sSql, keyPatternHash);
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.keyPatternHash);
+            int iLastEnd = 0;
             while (mc.find())
             {
                 string sParamName = ToolHelper.getKeyName(mc.group(), myPeachProp);
                 SqlKeyValueEntity param = SqlKeyValueEntity.build(mc.group(), dicNew, myPeachProp);
+                //确定IN列字符
+                fixedInColumnName(sSql, mc, iLastEnd, param);
 
                 if (!mapSqlKey.ContainsKey(sParamName))
                 {
@@ -305,6 +312,55 @@ namespace org.breezee.MyPeachNet
                 {
                     positionParamConditonList.Add(param.KeyValue);
                 }
+                iLastEnd = mc.end(); //上次参数位置
+            }
+        }
+
+        /// <summary>
+        /// 确实In列字符
+        /// </summary>
+        /// <param name="sSql"></param>
+        /// <param name="mc"></param>
+        /// <param name="iLastEnd"></param>
+        /// <param name="param"></param>
+        private static void fixedInColumnName(string sSql, MatchCollection mc, int iLastEnd, SqlKeyValueEntity param)
+        {
+            //确定InColumnName:20230829
+            if (!string.IsNullOrEmpty(param.KeyMoreInfo.InString))
+            {
+                string sBeforeSql = sSql.substring(iLastEnd, mc.end());
+                MatchCollection mcIn = ToolHelper.getMatcher(sBeforeSql, StaticConstants.inPattern);
+                while (mcIn.find())
+                {
+                    string sIncudeColumnName = mcIn.group().trim();
+                    MatchCollection mcColunIn = ToolHelper.getMatcher(sIncudeColumnName, @"(WHERE|AND|OR)\s*");
+                    if (mcColunIn.find())
+                    {
+                        sIncudeColumnName = sIncudeColumnName.replace(mcColunIn.group(), "").trim();
+                    }
+                    mcColunIn = ToolHelper.getMatcher(sIncudeColumnName, @"\s+IN");
+                    if (mcColunIn.find())
+                    {
+                        sIncudeColumnName = sIncudeColumnName.replace(mcColunIn.group(), "").trim();
+                    }
+
+                    int iLeft = 0;
+                    int iRight = 0;
+                    while (sIncudeColumnName.startsWith("("))
+                    {
+                        foreach (char oneChar in sIncudeColumnName.ToCharArray())
+                        {
+                            if (oneChar.Equals('(')) iLeft++;
+                            if (oneChar.Equals(')')) iRight++;
+                        }
+                        if (iLeft > iRight)
+                        {
+                            sIncudeColumnName = sIncudeColumnName.substring(1);
+                            iLeft--;
+                        }
+                    }
+                    param.getKeyMoreInfo().InColumnName = sIncudeColumnName;
+                }
             }
         }
 
@@ -318,18 +374,10 @@ namespace org.breezee.MyPeachNet
             //去掉前后空格
             string sNoConditionSql = sSql;
             //将#{}的参数，转换为##形式，方便后面统一处理
-            MatchCollection mc = ToolHelper.getMatcher(sNoConditionSql, keyPatternHashLeftBrace);
+            MatchCollection mc = ToolHelper.getMatcher(sNoConditionSql, StaticConstants.keyPatternHashLeftBrace);
             while (mc.find())
             {
-                string sNewParam = mc.group().replace("#", "").replace("{", "").replace("}", "");
-                if (sNewParam.IndexOf("'")>-1)
-                {
-                    sNewParam = "'" + StaticConstants.HASH + mc.group().replace("#", "").replace("{", "").replace("}", "").replace("'", "") + StaticConstants.HASH+"'";
-                }
-                else
-                {
-                    sNewParam = StaticConstants.HASH + mc.group().replace("#", "").replace("{", "").replace("}", "").replace("'", "") + StaticConstants.HASH;
-                }
+                string sNewParam = mc.group().replace("#{", "#").replace("}", "#");
                 sSql = sSql.replace(mc.group(), sNewParam);
             }
             return sSql;
@@ -339,7 +387,10 @@ namespace org.breezee.MyPeachNet
         /// 移除SQL注释方法
         /// </summary>
         /// <param name="sSql"></param>
-        public string RemoveSqlRemark(string sSql, IDictionary<string, object> dic)
+        /// <param name="dic"></param>
+        /// <param name="isPreGetCondition">是否预获取参数</param>
+        /// <returns></returns>
+        public string RemoveSqlRemark(string sSql, IDictionary<string, object> dic,bool isPreGetCondition=false)
         {
             //1、预处理
             //1.1 去掉前后空字符：注这里不要转换为大写，因为有些条件里有字母值，如转换为大写，则会使条件失效！！
@@ -357,10 +408,10 @@ namespace org.breezee.MyPeachNet
             }
 
             //2.2 先去掉/***\/的多行注释：因为多行注释不好用正则匹配，所以其就要像左右括号一样，单独分析匹配
-            sSql = removeMultiLineRemark(sSql, dic);
+            sSql = removeMultiLineRemark(sSql, dic, isPreGetCondition);
             //参数#改为*后的SQL
             string sNoConditionSql = sSql;
-            mc = ToolHelper.getMatcher(sSql, keyPatternHash);
+            mc = ToolHelper.getMatcher(sSql, StaticConstants.keyPatternHash);
             while (mc.find())
             {
                 //先将#号替换为*，防止跟原注释冲突。注：字符数量还是跟原SQL一样！
@@ -416,7 +467,7 @@ namespace org.breezee.MyPeachNet
          * @param sSql
          * @return
          */
-        protected string removeMultiLineRemark(string sSql, IDictionary<string, object> dic)
+        protected string removeMultiLineRemark(string sSql, IDictionary<string, object> dic, bool isPreGetCondition=false)
         {
             MatchCollection mc;
             StringBuilder sb = new StringBuilder();
@@ -463,7 +514,7 @@ namespace org.breezee.MyPeachNet
                     {
                         //包含动态SQL标志
                         sOneRemarkSql = sOneRemarkSql.substring(iStart+ iLen, iEnd).trim();
-                        sOneRemarkSql = getDynamicSql(dic, sOneRemarkSql);
+                        sOneRemarkSql = getDynamicSql(dic, sOneRemarkSql, isPreGetCondition);
                         sb.append(sOneRemarkSql.trim());//加入动态部分的SQL
                     }
 
@@ -488,35 +539,58 @@ namespace org.breezee.MyPeachNet
         /// <param name="sOneRemarkSql"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        private string getDynamicSql(IDictionary<string, object> dic, string sOneRemarkSql)
+        private string getDynamicSql(IDictionary<string, object> dic, string sOneRemarkSql, bool isPreGetCondition=false)
         {
             try
             {
-                string[] dnyArr = sOneRemarkSql.Split(new char[] { '&' });
-                if (dnyArr.Length == 2)
+                MatchCollection mc = ToolHelper.getMatcher(sOneRemarkSql, StaticConstants.dynSqlSegmentConfigPatternCenter);
+                if (mc.find())
                 {
-                    string sCond = dnyArr[0].Trim();
-                    int iLen = 2;
-                    int iFinStart = sCond.IndexOf("{[");
-                    int iFinEnd = sCond.IndexOf("]}");
-                    sCond = sCond.substring(iFinStart, iFinEnd);
+                    string sCond = sOneRemarkSql.substring(0,mc.start());
+                    string sDynSql = sOneRemarkSql.substring(mc.end());
 
-                    //
-                    string sDynSql = dnyArr[1].Trim();
-                    sDynSql = sDynSql.substring(sDynSql.IndexOf("{[")+ iLen, sDynSql.IndexOf("]}"));
+                    mc = ToolHelper.getMatcher(sCond, StaticConstants.dynSqlSegmentConfigPatternLeft);
+                    if (mc.find())
+                    {
+                        sCond = sCond.substring(mc.end()).trim();
+                    }
+
+                    mc = ToolHelper.getMatcher(sDynSql, StaticConstants.dynSqlSegmentConfigPatternRight);
+                    if (mc.find())
+                    {
+                        sDynSql = sDynSql.substring(0,mc.start()).trim();
+                    }
+
+                    int iFinStart = -1;
                     string sOperateStr = "";
+                    //增加IN和NOT IN 支持
+                    mc = ToolHelper.getMatcher(sCond, StaticConstants.dynSqlSegmentNotInPattern);
+                    if (mc.find())
+                    {
+                        return dynSqlSegmentInOrNotConditionEqual(dic, isPreGetCondition, mc, sCond, sDynSql,true);
+                    }
+                    mc = ToolHelper.getMatcher(sCond, StaticConstants.dynSqlSegmentInPattern);
+                    if (mc.find())
+                    {
+                        return dynSqlSegmentInOrNotConditionEqual(dic, isPreGetCondition, mc, sCond, sDynSql, false);
+                    }
+
                     if (sCond.IndexOf(">=") > 0)
                     {
                         //大于等于：使用整型比较
                         sOperateStr = ">=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             int iCondValue = int.Parse(dic[sKey].ToString());
                             int iSqlValue = int.Parse(sValue);
                             return (iCondValue.CompareTo(iSqlValue) >= 0) ? sDynSql : "";
+                        }
+                        if (isPreGetCondition && !dic.ContainsKey(sKey))
+                        {
+                            dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
                         }
                     }
                     else if (sCond.IndexOf("<=") > 0)
@@ -524,13 +598,17 @@ namespace org.breezee.MyPeachNet
                         //小于等于：使用整型比较
                         sOperateStr = "<=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             int iCondValue = int.Parse(dic[sKey].ToString());
                             int iSqlValue = int.Parse(sValue);
                             return (iCondValue.CompareTo(iSqlValue) <= 0) ? sDynSql : "";
+                        }
+                        if (isPreGetCondition && !dic.ContainsKey(sKey))
+                        {
+                            dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
                         }
                     }
                     else if (sCond.IndexOf("<") > 0)
@@ -538,13 +616,17 @@ namespace org.breezee.MyPeachNet
                         //小于：使用整型比较
                         sOperateStr = "<";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             int iCondValue = int.Parse(dic[sKey].ToString());
                             int iSqlValue = int.Parse(sValue);
                             return (iCondValue.CompareTo(iSqlValue) < 0) ? sDynSql : "";
+                        }
+                        if (isPreGetCondition && !dic.ContainsKey(sKey))
+                        {
+                            dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
                         }
                     }
                     else if (sCond.IndexOf(">") > 0)
@@ -552,13 +634,17 @@ namespace org.breezee.MyPeachNet
                         //大于：使用整型比较
                         sOperateStr = ">";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             int iCondValue = int.Parse(dic[sKey].ToString());
                             int iSqlValue = int.Parse(sValue);
                             return (iCondValue.CompareTo(iSqlValue) > 0) ? sDynSql : "";
+                        }
+                        if (isPreGetCondition && !dic.ContainsKey(sKey))
+                        {
+                            dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
                         }
                     }
                     else if (sCond.IndexOf("=") > 0)
@@ -566,11 +652,15 @@ namespace org.breezee.MyPeachNet
                         //等于：使用字符比较
                         sOperateStr = "=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             return sValue.equals(dic[sKey].ToString()) ? sDynSql : "";
+                        }
+                        if (isPreGetCondition && !dic.ContainsKey(sKey))
+                        {
+                            dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
                         }
                     }
                     else if (sCond.IndexOf("!=") > 0)
@@ -578,11 +668,15 @@ namespace org.breezee.MyPeachNet
                         //不等于：使用字符比较
                         sOperateStr = "!=";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             return sValue.equals(dic[sKey].ToString()) ? "" : sDynSql;
+                        }
+                        if (isPreGetCondition && !dic.ContainsKey(sKey))
+                        {
+                            dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
                         }
                     }
                     else if (sCond.IndexOf("<>") > 0)
@@ -590,11 +684,15 @@ namespace org.breezee.MyPeachNet
                         //不等于：使用字符比较
                         sOperateStr = "<>";
                         iFinStart = sCond.IndexOf(sOperateStr);
-                        string sKey = sCond.substring(iLen, iFinStart);
-                        string sValue = sCond.substring(iFinStart + sOperateStr.Length);
+                        string sKey = sCond.substring(0, iFinStart).trim();
+                        string sValue = sCond.substring(iFinStart + sOperateStr.Length).trim();
                         if (dic.ContainsKey(sKey))
                         {
                             return sValue.equals(dic[sKey].ToString()) ? "" : sDynSql;
+                        }
+                        if (isPreGetCondition && !dic.ContainsKey(sKey))
+                        {
+                            dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
                         }
                     }
                     else
@@ -602,12 +700,45 @@ namespace org.breezee.MyPeachNet
                         throw new Exception("不支持的动态SQl操作符，只能使用>=、>、<=、<、=、！=、<>这几种单值比较符！原始字符：" + sCond);
                     }
                 }
-                throw new Exception("动态SQl配置错误！！" );
+                return "";
             }
             catch(Exception e)
             {
                 return "";
             }
+        }
+
+        /// <summary>
+        /// 动态SQL段的In或Not IN判断
+        /// </summary>
+        /// <param name="dic"></param>
+        /// <param name="isPreGetCondition"></param>
+        /// <param name="mc"></param>
+        /// <param name="sCond"></param>
+        /// <param name="sDynSql"></param>
+        /// <param name="isNotIn"></param>
+        /// <returns></returns>
+        private static string dynSqlSegmentInOrNotConditionEqual(IDictionary<string, object> dic, bool isPreGetCondition, MatchCollection mc, string sCond, string sDynSql,bool isNotIn)
+        {
+            string sKey = sCond.substring(0, mc.start()).trim();
+            string sValue = sCond.substring(mc.end()).replace("(", "").replace(")", "").replace("'", "");
+            if (dic.ContainsKey(sKey))
+            {
+                string[] arrNotIn = sValue.split(",");
+                foreach (string item in arrNotIn)
+                {
+                    if (item.equals(dic[sKey].ToString()))
+                    {
+                        return isNotIn ? "":sDynSql; //找到了：针对NOT IN返回空；针对IN返回动态SQL
+                    }
+                }
+                return isNotIn ? sDynSql: ""; //没找到：针对NOT IN返回动态SQL；针对IN返回空
+            }
+            if (isPreGetCondition && !dic.ContainsKey(sKey))
+            {
+                dic.Add(StaticConstants.dynConditionKeyPre + sKey, sValue);//加上前缀，是为了更好区分这是注释里的动态键
+            }
+            return "";
         }
 
         /**
@@ -616,7 +747,7 @@ namespace org.breezee.MyPeachNet
          * @param sSql
          * @return
          */
-        protected string generateParenthesesKey(string sSql)
+        public string generateParenthesesKey(string sSql)
         {
             MatchCollection mc;
             StringBuilder sb = new StringBuilder();
@@ -784,7 +915,21 @@ namespace org.breezee.MyPeachNet
             MatchCollection mcWhere = ToolHelper.getMatcher(sSql, StaticConstants.wherePattern);
             if (!mcWhere.find())
             {
-                return sb.toString();
+                //没有Where，那就是直接SELECT部分
+                if (!hasKey(sSql))
+                {
+                    return sSql; //没有参数时直接返回
+                }
+                //有键
+                string[] keyList = sSql.split(",");
+                int iCount = 0;
+                foreach (string item in keyList)
+                {
+                    string sValue = iCount == 0 ? "" : ",";
+                    sb.append(sValue + singleKeyConvert(item));
+                    iCount++;
+                }
+                return sb.ToString();
             }
 
             //sb.append(sSql.substring(0,mcWhere.start()));//确定FROM部分
@@ -931,6 +1076,7 @@ namespace org.breezee.MyPeachNet
                 }
                 //2、得到一个AND或OR段
                 string oneSql = sCond.substring(iStart, mc.start());
+
                 //查看是否有：##序号##
                 bool parenthesesRounFlag = false;//没有
                 MatchCollection mc2 = ToolHelper.getMatcher(oneSql, parenthesesRoundKeyPattern);
@@ -986,10 +1132,11 @@ namespace org.breezee.MyPeachNet
 
             string sSqlNew = sSql; //注：在匹配的SQL中，不能修改原字符，不然根据mc.start()或mc.end()取出的子字符会不对!!
             Dictionary<string,String> dicReplace = new Dictionary<string,String>();
-            //2、有 ##序号## 字符的语句分析：可能会有多个:TODO 未针对每一个##序号##作详细分析
+            //2、有 ##序号## 字符的语句分析：可能会有多个,需要针对每一个##序号##作详细分析
             //比如WITH...INSERT INTO...SELECT和INSERT INTO...WITH...INSERT INTO...
             string sSource = "";
             string sReturn = string.Empty;
+            int iLastStart = 0;
             while (hasFirstMatcher)
             {
                 sSource = mapsParentheses.get(mc.group());//取出 ##序号## 内容
@@ -1009,15 +1156,17 @@ namespace org.breezee.MyPeachNet
                     if (!hasKey(sConnect))
                     {
                         //2.2 合并后也没有键，则直接追加到头部字符构建器
-                        return sConnect;
+                        sb.Append(sConnect);
+                        return sb.toString();
                     }
                     //2.3 如果有键传入，那么进行单个键转换
-                    return singleKeyConvert(sConnect);
+                    sb.Append(singleKeyConvert(sConnect));
+                    return sb.toString();
                 }
 
                 //判断是否所有键为空
                 bool allKeyNull = true;
-                MatchCollection mc1 = ToolHelper.getMatcher(sSource, keyPatternHash);
+                MatchCollection mc1 = ToolHelper.getMatcher(sSource, StaticConstants.keyPatternHash);
                 while (mc1.find())
                 {
                     if (ToolHelper.IsNotNull(singleKeyConvert(mc1.group())))
@@ -1027,14 +1176,28 @@ namespace org.breezee.MyPeachNet
                     }
                 }
 
-                string sPre = sSql.substring(0, mc.start());
-                string sEnd = sSql.substring(mc.end());
+                string sPre = sSql.substring(iLastStart, mc.start());
+                iLastStart = mc.end();
+                string sEnd = sSql.substring(iLastStart); //注：后续部分还可能用##序号##
 
                 //3、子查询处理
-                string sChildQuery = childQueryConvert(sLastAndOr + sPre, sEnd, sSource);
+                string sChildQuery = childQueryConvert(sLastAndOr + sPre, "", sSource);//这里先不把结束字符加上
                 sb.append(sChildQuery);//加上子查询
                 if (allKeyNull || ToolHelper.IsNotNull(sChildQuery))
                 {
+                    //取出下个匹配##序号##的键，如果有，那么继续下个循环去替换##序号##
+                    hasFirstMatcher = mc.find();
+                    if (hasFirstMatcher)
+                    {
+                        //继续取出##序号##键的值来替换
+                        sSqlNew = sEnd;//剩余部分将要被处理
+                        continue;
+                    }
+                    else
+                    {
+                        sb.append(sEnd);//这里把结束字符加上
+                    }
+
                     sReturn = sb.toString();
                     foreach (string sKey in dicReplace.Keys)
                     {
@@ -1042,8 +1205,23 @@ namespace org.breezee.MyPeachNet
                     }
                     return sReturn;//如果全部参数为空，或者子查询已处理，直接返回
                 }
-                //4、有键值传入，并且非子查询，做AND或OR正则匹配分拆字符
-                sb.append(sLastAndOr + sPre);//因为不能移除"()"，所以这里先拼接收"AND"或"OR"，记得加上头部字符
+
+                //4、非子查询的处理
+                sb.append(sEnd);//这里把结束字符加上
+                //判断是否IN表达式
+                MatchCollection mcOnlyIn = ToolHelper.getMatcher(sSql, StaticConstants.onlyInPattern);
+                string sInAnd = "";
+                string sInColumn = "";
+                if (mcOnlyIn.find())
+                {
+                    sInAnd = sLastAndOr;
+                    sInColumn =  sPre; //把列名 IN ()这一段完整加上
+                }
+                else
+                {
+                    //有键值传入，并且非子查询，做AND或OR正则匹配分拆字符
+                    sb.append(sLastAndOr + sPre);//因为不能移除"()"，所以这里先拼接收"AND"或"OR"，记得加上头部字符
+                }
 
                 //AND或OR正则匹配处理
                 // 注：此处虽然与【andOrConditionConvert】有点类似，但有不同，不能将以下代码替换为andOrConditionConvert方法调用
@@ -1061,8 +1239,9 @@ namespace org.breezee.MyPeachNet
                     beforeAndOr = mc2.group();
                 }
                 //4.2 最后一个AND或OR之后的的SQL字符串处理，也是调用【括号SQL段转换方法】
-                sValue = parenthesesConvert(sSource.substring(iStart), beforeAndOr);
-                sb.append(sValue + sEnd);//加上尾部字符
+                string sEndSql = sInColumn + sSource.substring(iStart);
+                sValue = parenthesesConvert(sEndSql, beforeAndOr); //TODO:IN
+                sb.append(sInAnd + sValue + sEnd);//加上尾部字符
 
                 hasFirstMatcher = mc.find();//注：这里也要重新给hasFirstMatcher赋值，要不会有死循环
             }
@@ -1075,22 +1254,23 @@ namespace org.breezee.MyPeachNet
             return sReturn;//如果全部参数为空，或者子查询已处理，直接返回
         }
 
-        /**
-         * 含括号的SQL段转换
-         *   注：已经过AND或OR拆分，只含一个键，并且字符前有左括号，或者字符后有右括号
-         *  例如 ( ( CREATOR = '#CREATOR#'、CREATOR_ID = #CREATOR_ID# ) 、 TFLG = '#TFLG#')
-         * @param sSql 只有一个key的字符（即已经过AND或OR的正则表达式匹配后分拆出来的部分字符）
-         * @param sLastAndOr 前一个拼接的AND或OR字符
-         */
+        /// <summary>
+        /// 含括号的SQL段转换
+        /// 注：已经过AND或OR拆分，只含一个键，并且字符前有左括号，或者字符后有右括号
+        /// 例如((CREATOR = '#CREATOR#'、CREATOR_ID = #CREATOR_ID# ) 、 TFLG = '#TFLG#')
+        /// </summary>
+        /// <param name="sSql">只有一个key的字符（即已经过AND或OR的正则表达式匹配后分拆出来的部分字符）</param>
+        /// <param name="sLastAndOr">前一个拼接的AND或OR字符</param>
+        /// <returns></returns>
         private string parenthesesConvert(string sSql, string sLastAndOr)
         {
             //1、剔除开头的一个或多个左括号，并且把这些左括号记录到变量中，方便后面拼接
             string sOne = sSql;
             string sStartsParentheses = "";
             while (sOne.startsWith("("))
-            { //remvoe the start position of string "("
+            {
                 sStartsParentheses += "(";
-                sOne = sOne.substring(1).trim();
+                sOne = sOne.substring(1).trim(); //remvoe the start position of string "("
             }
 
             //2、剔除结尾处的一个或多个括号，并将它记录到变量中，方便后面拼接
@@ -1108,7 +1288,7 @@ namespace org.breezee.MyPeachNet
                 }
             }
 
-            string sParmFinal = singleKeyConvert(sOne);//有括号也一并去掉了
+            string sParmFinal = singleKeyConvert(sOne);//有括号也一并去掉了。
             if (ToolHelper.IsNull(sParmFinal))
             {
                 //没有键值传入
@@ -1122,6 +1302,7 @@ namespace org.breezee.MyPeachNet
             }
             else
             {
+                //IN清单的括号在里边已组装
                 return sLastAndOr + sStartsParentheses + sParmFinal + sEndRight;//有键值传入
             }
 
@@ -1190,14 +1371,15 @@ namespace org.breezee.MyPeachNet
             return sb.toString(); //返回子查询已处理
         }
 
-        /****
-         * 单个键SQL转换：一般在对AND（OR）分隔后调用本方法
-         * @param sSql: 例如："[PROVINCE_CODE] = '#PROVINCE_CODE#'" 或 ",[PROVINCE_NAME] = '#PROVINCE_NAME#'"
-         * @return
-         */
+        /// <summary>
+        /// 单个键SQL转换：一般在对AND（OR）分隔后调用本方法
+        /// @param sSql: 例如："[PROVINCE_CODE] = '#PROVINCE_CODE#'" 或 ",[PROVINCE_NAME] = '#PROVINCE_NAME#'"
+        /// </summary>
+        /// <param name="sSql"></param>
+        /// <returns></returns>
         protected string singleKeyConvert(string sSql)
         {
-            MatchCollection mc = ToolHelper.getMatcher(sSql, keyPatternHash);
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.keyPatternHash);
             while (mc.find())
             {
                 string sKey = ToolHelper.getKeyName(mc.group(), myPeachProp);
@@ -1210,14 +1392,42 @@ namespace org.breezee.MyPeachNet
                 //最终值处理标志
                 if (ToolHelper.IsNotNull(sList))
                 {
-                    return sSql.replace(mc.group(), sList);//替换IN的字符串
+                    string[] sInArr = sList.split(",");
+                    int iMaxIn = entity.getKeyMoreInfo().PerInListMax > 0 ? entity.getKeyMoreInfo().PerInListMax : myPeachProp.inMax;
+                    double dCount = sInArr.Length * 1.0 / iMaxIn;
+                    int iCount = (int)Math.Ceiling(dCount);
+                    if (iCount <= 1)
+                    {
+                        return sSql.replace(mc.group(), sList);//替换IN的字符串
+                    }
+                    else
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("(");
+                        for (int i = 0; i < iCount; i++)
+                        {
+                            string sOne = string.Join(",", sInArr.Skip(i * iMaxIn).Take(iMaxIn));
+                            if (i == 0)
+                            {
+                                string sOneIn = sSql.replace(mc.group(), sOne);
+                                sb.append(sOneIn + " ");
+                            }
+                            else
+                            {
+                                string sOneIn = "OR " + entity.getKeyMoreInfo().InColumnName + " IN (" + sOne + ") ";
+                                sb.append(sOneIn + " ");
+                            }
+                        }
+                        sb.Append(")");
+                        return sb.toString();
+                    }
                 }
                 if (entity.getKeyMoreInfo().isMustValueReplace() || myPeachProp.getTargetSqlParamTypeEnum() == TargetSqlParamTypeEnum.DIRECT_RUN)
                 {
                     //2、返回替换键后只有值的SQL语句
                     return sSql.replace(mc.group(),entity.getReplaceKeyWithValue().ToString());
                 }
-                //3、返回参数化的SQL语句：todo-这里未解决LIKE的问题
+                //3、返回参数化的SQL语句：LIKE的问题是在值的前或后或两边加上%解决
                 return sSql.replace(mc.group(), myPeachProp.getParamPrefix() + sKey + myPeachProp.getParamSuffix());
             }
             return sSql;//4、没有键时，直接返回原语句
@@ -1230,7 +1440,7 @@ namespace org.breezee.MyPeachNet
          */
         protected string getFirstKeyString(string sSql)
         {
-            MatchCollection mc = ToolHelper.getMatcher(sSql, keyPatternHash);
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.keyPatternHash);
             if (mc.find())  
             {
                 return mc.group();
@@ -1259,7 +1469,7 @@ namespace org.breezee.MyPeachNet
          */
         protected bool hasKey(string sSql)
         {
-            MatchCollection mc = ToolHelper.getMatcher(sSql, keyPatternHash);
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.keyPatternHash);
             bool hasPara = false;
             while (mc.find())
             {
@@ -1282,12 +1492,27 @@ namespace org.breezee.MyPeachNet
             {
                 sb.append(mc.group());//不变的SELECT部分先加入
                 sSql = sSql.substring(mc.end()).trim();
+
+                //UNION 或 UNION ALL的处理
+                sSql = unionOrUnionAllConvert(sSql, sb);
+                if (ToolHelper.IsNull(sSql))
+                {
+                    return sb.toString();
+                }
+                //非UNION 且 非UNION ALL的处理
                 string sFinalSql = fromWhereSqlConvert(sSql, childQuery);
                 sb.append(sFinalSql);
             }
             else
             {
                 //传过来的SQL有可能去掉了SELECT部分
+                //UNION 或 UNION ALL的处理
+                sSql = unionOrUnionAllConvert(sSql, sb);
+                if (ToolHelper.IsNull(sSql))
+                {
+                    return sb.toString();
+                }
+
                 string sFinalSql = fromWhereSqlConvert(sSql, childQuery);
                 sb.append(sFinalSql);
             }
@@ -1411,6 +1636,37 @@ namespace org.breezee.MyPeachNet
             sbHead.append(")");
             sbTail.append(")");
             sSql = "";//处理完毕清空SQL
+            return sSql;
+        }
+
+        /// <summary>
+        /// UNION 或 UNION ALL 或 其他处理
+        /// </summary>
+        /// <param name="sSql">处理前SQL</param>
+        /// <param name="sbHead">处理后的拼接SQL</param>
+        /// <returns></returns>
+        protected string unionOrUnionAllConvert(string sSql, StringBuilder sbHead)
+        {
+            //UNION和UNION ALL处理
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.unionAllPartner);
+            int iStart = 0;
+            while (mc.find())
+            {
+                string sOne = sSql.substring(iStart, mc.start());
+                string sConvertSql = queryHeadSqlConvert(sOne, false);
+                sbHead.append(sConvertSql);
+                iStart = mc.end();
+                sbHead.append(mc.group());
+            }
+
+            if (iStart > 0)
+            {
+                //UNION或UNION ALL处理剩下部分的处理
+                string sOne = sSql.substring(iStart);
+                string sConvertSql = queryHeadSqlConvert(sOne, false);
+                sbHead.append(sConvertSql);
+                return "";
+            }
             return sSql;
         }
 

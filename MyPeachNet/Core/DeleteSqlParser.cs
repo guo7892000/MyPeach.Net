@@ -14,6 +14,8 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/12 16:45
+     * @history:
+     *   
      */
     public class DeleteSqlParser : AbstractSqlParser
     {
@@ -25,13 +27,13 @@ namespace org.breezee.MyPeachNet
         protected override string headSqlConvert(string sSql)
         {
             StringBuilder sb = new StringBuilder();
-            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.deletePattern);//抽取出INSERT INTO TABLE_NAME(部分
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.deletePattern);
             if(mc.find())
             {
-                sb.append(mc.group());//不变的INSERT INTO TABLE_NAME(部分先加入
+                sb.append(mc.group());
                 sqlTypeEnum = SqlTypeEnum.DELETE;
                 //FROM部分SQL处理
-                string sWhereSql = fromWhereSqlConvert(sSql.substring(mc.end()), false);
+                string sWhereSql = fromWhereSqlConvert(sSql.substring(mc.end()), false); //这里不可能有UNION或UNION ALL
                 //如果禁用全表更新，并且条件为空，则抛错！
                 if (ToolHelper.IsNull(sWhereSql) && myPeachProp.isForbidAllTableUpdateOrDelete())
                 {
@@ -63,7 +65,7 @@ namespace org.breezee.MyPeachNet
         /// <returns></returns>
         public override bool isRightSqlType(string sSql)
         {
-            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.deletePattern);//抽取出INSERT INTO TABLE_NAME(部分
+            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.deletePattern);
             return mc.find();
         }
     }

@@ -16,6 +16,8 @@ namespace org.breezee.MyPeachNet
      * @email: guo7892000@126.com
      * @wechat: BreezeeHui
      * @date: 2022/4/12 16:45
+     * @history:
+     *    
      */
     public class UpdateSqlParser : AbstractSqlParser
     {
@@ -33,8 +35,9 @@ namespace org.breezee.MyPeachNet
                 sqlTypeEnum = SqlTypeEnum.UPDATE;
                 sb.append(mc.group());//不变的UPDATE SET部分先加入
                 sSql = sSql.substring(mc.end()).trim();
-                String sFinalSql = fromWhereSqlConvert(sSql,false);//调用From方法
-                                                                    //如果禁用全表更新，并且条件为空，则抛错！
+                //调用From方法
+                string sFinalSql = fromWhereSqlConvert(sSql,false); //注：更新的条件也不可能会有UNION或UNION ALL
+                //如果禁用全表更新，并且条件为空，则抛错！
                 if (ToolHelper.IsNull(sFinalSql) && myPeachProp.isForbidAllTableUpdateOrDelete())
                 {
                     mapError.put("出现全表更新，已停止", "更新语句不能没有条件，那样会更新整张表数据！");//错误列表
