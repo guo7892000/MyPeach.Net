@@ -14,6 +14,7 @@ using System.Threading.Tasks;
  * @history:
  *   2023/07/21 BreezeeHui 针对Like的前后模糊查询，其键值也相应增加%，以支持模糊查询
  *   2023/08/18 BreezeeHui 参数前后缀只取#参数#；当条件不传值时，取默认值，根据默认值是否必须值替换来决定值必须值替换。
+ *   2023/08/30 BreezeeHui 针对InString值，如配置为不加引号，那么也把值中的引号去掉。
  */
 namespace org.breezee.MyPeachNet
 {
@@ -171,6 +172,13 @@ namespace org.breezee.MyPeachNet
                     entity.ReplaceKeyWithValue = "'" + entity.ReplaceKeyWithValue + "'";
                 }
             }
+            //针对In清单中单引号的处理
+            string sInString = entity.getKeyMoreInfo().getInString();
+            if (!string.IsNullOrEmpty(sInString) && !entity.HasSingleQuotes)
+            {
+                entity.getKeyMoreInfo().InString = sInString.Replace("'", "").trim();//去掉IN清单字符中的引号
+            }
+
             return entity;
         }
 

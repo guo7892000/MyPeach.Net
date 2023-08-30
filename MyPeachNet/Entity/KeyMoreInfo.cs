@@ -20,6 +20,7 @@ namespace org.breezee.MyPeachNet
      *    2023/08/04 BreezeeHui 键设置增加优先使用配置项（F）的支持，即当一个键出现多次时，优先使用该配置内容。
      *    2023/08/13 BreezeeHui 键设置增加默认值、不加引号。
      *    2023/08/18 BreezeeHui 字符比较忽略大小写（Equals(sOne, StringComparison.OrdinalIgnoreCase) 代替 Equals(sOne)）。子配置支持支持-&,;，；分隔
+     *    2023/08/30 BreezeeHui 针对默认值，如配置为不加引号，那么也把值中的引号去掉。
      */
     public class KeyMoreInfo
     {
@@ -129,6 +130,7 @@ namespace org.breezee.MyPeachNet
                             if (SqlKeyConfig.V_NO_QUOTATION_MARK.Equals(sMoreArr[j].trim(), StringComparison.OrdinalIgnoreCase))
                             {
                                 moreInfo.IsDefaultValueNoQuotationMark = true;//默认值不加引号
+                                moreInfo.DefaultValue = moreInfo.DefaultValue.replace("'", "").trim(); //去掉默认值中的引号
                             }
                         }
                     }
