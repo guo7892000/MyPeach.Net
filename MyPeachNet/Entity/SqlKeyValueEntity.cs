@@ -121,11 +121,7 @@ namespace org.breezee.MyPeachNet
                 inValue = dicQuery[sParamNamePreSuffix];
             }
 
-            entity.KeyMoreInfo = KeyMoreInfo.build(sParamNameMore, inValue);//设置更多信息对象
-            if (entity.KeyMoreInfo.IsNoQuotationMark)
-            {
-                entity.HasSingleQuotes = false; //重新根据配置来去掉引号
-            }
+            entity.KeyMoreInfo = KeyMoreInfo.build(sParamNameMore, inValue, entity);//设置更多信息对象
             //使用默认值条件：条件传入值为空，非预获取参数，默认值不为空
             if (inValue == null && !isPreGetCondition && entity.KeyMoreInfo.DefaultValue != null && !string.IsNullOrWhiteSpace(entity.KeyMoreInfo.DefaultValue))
             {
