@@ -781,7 +781,7 @@ namespace org.breezee.MyPeachNet
                     mapsParentheses.put(sKey, sParenthesesSql);
                     sb.append(sKey);//注：不要包括右括号
                     iGroupStart = mc.end();//下一个语句的开始
-                                           //iGroup++;
+
                     iLeft = 0;
                     iRight = 0;
                 }
@@ -814,7 +814,6 @@ namespace org.breezee.MyPeachNet
 
             //分隔FROM段
             MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.fromPattern);
-            bool isDealWhere = false;
             //因为只会有一个FROM，所以这里不用WHILE，而使用if
             if (!mc.find())
             {
@@ -1428,7 +1427,11 @@ namespace org.breezee.MyPeachNet
                     return sSql.replace(mc.group(),entity.getReplaceKeyWithValue().ToString());
                 }
                 //3、返回参数化的SQL语句：LIKE的问题是在值的前或后或两边加上%解决
-                return sSql.replace(mc.group(), myPeachProp.getParamPrefix() + sKey + myPeachProp.getParamSuffix());
+                if(myPeachProp.getTargetSqlParamTypeEnum() == TargetSqlParamTypeEnum.NameParam)
+                {
+                    return sSql.replace(mc.group(), myPeachProp.getParamPrefix() + sKey + myPeachProp.getParamSuffix());
+                }
+                return sSql.replace(mc.group(), "?");
             }
             return sSql;//4、没有键时，直接返回原语句
         }

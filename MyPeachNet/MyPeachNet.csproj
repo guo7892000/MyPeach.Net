@@ -7,7 +7,7 @@
     <AssemblyName>org.breezee.$(MSBuildProjectName)</AssemblyName>
     <RootNamespace>org.breezee.$(MSBuildProjectName)</RootNamespace>
     <AssemblyVersion>1.0.0</AssemblyVersion>
-    <FileVersion>1.2.0</FileVersion>
+    <FileVersion>1.2.2</FileVersion>
     <BaseOutputPath>..\..\bin</BaseOutputPath>
   </PropertyGroup>
 
