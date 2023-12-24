@@ -47,7 +47,7 @@ namespace org.breezee.MyPeachNet
         /**
          * 参数位置化的查询条件值
          */
-        private List<object> positionCondition = new List<object>();
+        public List<object> PositionCondition = new List<object>();
 
         /**
          * 错误信息集合
@@ -63,7 +63,7 @@ namespace org.breezee.MyPeachNet
             result.entityQuery = entityQuery;
             result.ObjectQuery = ObjectQuery;
             result.StringQuery = StringQuery;
-            result.positionCondition = pCondition;
+            result.PositionCondition = pCondition;
             return result;
         }
 
