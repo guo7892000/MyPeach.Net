@@ -1116,8 +1116,9 @@ namespace org.breezee.MyPeachNet
          *  之前为了降低复杂度，将包含()的子查询或函数替换为##序号##，这里需要取出来分析
          * @param sSql 包含##序号##的SQL
          * @param sLastAndOr 上次处理中最后的那个AND或OR字符
+         * @param isSingleColumnDeal 是否单个字段处理，如查询列中也可能包含参数，无没有则直接跳过
          */
-        protected string complexParenthesesKeyConvert(string sSql, string sLastAndOr)
+        protected string complexParenthesesKeyConvert(string sSql, string sLastAndOr, bool isSingleColumnDeal = false)
         {
             StringBuilder sb = new StringBuilder();
             string sValue = "";
@@ -1179,6 +1180,22 @@ namespace org.breezee.MyPeachNet
                 string sPre = sSql.substring(iLastStart, mc.start());
                 iLastStart = mc.end();
                 string sEnd = sSql.substring(iLastStart); //注：后续部分还可能用##序号##
+
+                //查询单列的动态处理
+                if (isSingleColumnDeal)
+                {
+                    if (!hasKey(sSource))
+                    {
+                        return sPre + sSource + sEnd; //无键时直接返回
+                    }
+
+                    string sSingleKeyName = getFirstKeyName(sSource);
+                    if (!mapSqlKeyValid.ContainsKey(sSingleKeyName))
+                    {
+                        return ""; //没有值传入，直接返回空
+                    }
+                    return sPre + singleKeyConvert(sSource) + sEnd;
+                }
 
                 //3、子查询处理
                 string sChildQuery = childQueryConvert(sLastAndOr + sPre, "", sSource);//这里先不把结束字符加上
@@ -1545,16 +1562,24 @@ namespace org.breezee.MyPeachNet
                     continue;
                 }
                 //括号转换处理
-                string colString = complexParenthesesKeyConvert(sComma + col, "");
-                sb.append(colString);
-                //第一个有效元素后的元素前要加逗号：查询的字段应该是不能去掉的，回头这再看看？？？
+                string colString = complexParenthesesKeyConvert(sComma + col, "", true);
+                if (!hasKey(colString))
+                {
+                    sb.append(colString);
+                    sComma = ",";
+                    continue;
+                }
+
+                string sKey = getFirstKeyName(colString);
+                if (mapSqlKeyValid.ContainsKey(sKey))
+                {
+                    sb.append(singleKeyConvert(colString));
+                    sComma = ",";
+                }
+
                 if (sComma.isEmpty())
                 {
-                    string sKey = getFirstKeyName(col);
-                    if (mapSqlKeyValid.ContainsKey(sKey))
-                    {
-                        sComma = ",";
-                    }
+                    sComma = ",";
                 }
             }
 
