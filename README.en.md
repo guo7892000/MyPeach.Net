@@ -6,8 +6,9 @@ If a value is passed in for a certain key, the condition will be retained and pa
 The dynamic parts include: all types of conditions, Insert items, and UPDATE items.
 
 ##Software architecture
- .NET 6.0 + C# + VS 2022
-
+ * .NET 6.0 + C# + VS 2022
+ *    Note: MyPeach. Net in NetFramework version 4.8 is integrated into the WorkHelper project, and the generated DLL program path is:
+ *      https://gitee.com/breezee2000/WorkHelper/blob/master/Release/MyPeach.Net.dll
 ##Characteristics
 *Database independence
 *Supported statement styles:

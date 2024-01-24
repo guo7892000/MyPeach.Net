@@ -19,8 +19,9 @@ MyPeach.Net是在.Net生态下的一个动态SQ转换工具，它能根据SQL中
 * 目前只是Breezee个人在维护，没有建立团队经营。
 
 ## 软件架构
-.NET 6.0 + C# + VS 2022
-
+* .NET 6.0 + C# + VS 2022
+* 注：NetFramework4.8版本的MyPeach.Net集成到了WorkHelper项目中，其生成的DLL程序路径为：
+* https://gitee.com/breezee2000/WorkHelper/blob/master/Release/MyPeach.Net.dll
 ## 特点
 * 数据库无关性
 * 支持的语句样式：
