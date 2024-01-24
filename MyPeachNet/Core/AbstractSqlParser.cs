@@ -813,10 +813,9 @@ namespace org.breezee.MyPeachNet
             string sFromWhere = "";
 
             //分隔FROM段
-            MatchCollection mc = ToolHelper.getMatcher(sSql, StaticConstants.fromPattern);
-            bool isDealWhere = false;
+            MatchCollection mcFrom = ToolHelper.getMatcher(sSql, StaticConstants.fromPattern);
             //因为只会有一个FROM，所以这里不用WHILE，而使用if
-            if (!mc.find())
+            if (!mcFrom.find())
             {
                 //1。没有FROM语句
                 string sFinalWhere = whereConvert(sSql);
@@ -825,8 +824,8 @@ namespace org.breezee.MyPeachNet
             }
 
             //2.有FROM，及之后可能存在的WHERE段处理
-            sSet = sSql.substring(0, mc.start()).trim();
-            sFromWhere = sSql.substring(mc.end()).trim();
+            sSet = sSql.substring(0, mcFrom.start()).trim();
+            sFromWhere = sSql.substring(mcFrom.end()).trim();
 
             //1、查询语句中查询的字段，或更新语句中的更新项
             if (childQuery)
@@ -840,19 +839,57 @@ namespace org.breezee.MyPeachNet
                 sb.append(sFinalBeforeFrom);//由子类来处理
             }
 
-            sb.append(mc.group());//sbHead添加FROM字符
+            sb.append(mcFrom.group());//sbHead添加FROM字符
 
             //2、WHERE段分隔
             MatchCollection mcWhere = ToolHelper.getMatcher(sFromWhere, StaticConstants.wherePattern);
+            string sFrom;//from段
+            string sWhere;//where段
             //因为只会有一个FROM，所以这里不用WHILE，而使用if
             if (!mcWhere.find())
             {
-                return sb.toString() + sFromWhere;//没有WHERE段，则直接返回
+                //没有WHERE段：但后面可能有GROUP BY或ORDER BY或LIMI等项，需要进一步匹配，从而确定FROM段和FROM段字符
+                //GROUP BY的处理
+                MatchCollection mcGroupBy = ToolHelper.getMatcher(sSql, StaticConstants.groupByPattern);
+                if (mcGroupBy.find())
+                {
+                    sFrom = sSql.substring(mcFrom.end(), mcGroupBy.start());
+                    sWhere = mcGroupBy.group() + sSql.substring(mcGroupBy.end());
+                }
+                else
+                {
+                    //ORDER BY的处理
+                    MatchCollection mcOrder = ToolHelper.getMatcher(sSql, StaticConstants.orderByPattern);
+                    if (mcOrder.find())
+                    {
+                        sFrom = sSql.substring(mcFrom.end(), mcOrder.start());
+                        sWhere = mcOrder.group() + sSql.substring(mcOrder.end());
+                    }
+                    else
+                    {
+                        //LIMIT的处理
+                        MatchCollection mcLimit = ToolHelper.getMatcher(sSql, StaticConstants.limitPattern);
+                        if (mcLimit.find())
+                        {
+                            sFrom = sSql.substring(mcFrom.end(), mcLimit.start());
+                            sWhere = mcLimit.group() + sSql.substring(mcLimit.end());
+                        }
+                        else
+                        {
+                            //没有GROUP BY、ORDER BY、LIMIT，那么就相当于只有FROM段的内容
+                            sFrom = sSql.substring(mcFrom.end());
+                            sWhere = "";
+                        }
+                    }
+                }
             }
-            //3、FROM段的处理
-            string sFrom = sFromWhere.substring(0, mcWhere.start());//
-            string sWhere = sFromWhere.substring(mcWhere.end() - mcWhere.group().length());
+            else
+            {
+                sFrom = sFromWhere.substring(0, mcWhere.start());//
+                sWhere = sFromWhere.substring(mcWhere.end() - mcWhere.group().length());
+            }
 
+            //3、FROM段的处理
             if (!hasKey(sFrom))
             {
                 //FROM段没有参数时，直接拼接
