@@ -71,7 +71,7 @@ namespace org.breezee.MyPeachNet
          * @param sKeyMore 键更多信息字符，例如：CITY_NAME:N
          * @return
          */
-        public static KeyMoreInfo build(string sKeyMore, object objValue)
+        public static KeyMoreInfo build(string sKeyMore, object objValue, SqlKeyValueEntity sqlKeyValueEntity)
         {
             KeyMoreInfo moreInfo = new KeyMoreInfo();
             //配置大类分隔
@@ -100,6 +100,8 @@ namespace org.breezee.MyPeachNet
                 else if (SqlKeyConfig.STRING_LIST.Equals(sOne, StringComparison.OrdinalIgnoreCase))  //字符列表
                 {
                     listConvert(objValue, moreInfo, true);
+                    moreInfo.IsNoQuotationMark = false;
+                    sqlKeyValueEntity.HasSingleQuotes= true;
                     if (sMoreArr.Length > 1)
                     {
                         moreInfo.PerInListMax = ToolHelper.getInt(sMoreArr[1],0);
@@ -108,6 +110,8 @@ namespace org.breezee.MyPeachNet
                 else if (SqlKeyConfig.INTEGE_LIST.Equals(sOne, StringComparison.OrdinalIgnoreCase)) //整型列表
                 {
                     listConvert(objValue, moreInfo, false);
+                    moreInfo.IsNoQuotationMark = true;
+                    sqlKeyValueEntity.HasSingleQuotes = false;
                     if (sMoreArr.Length > 1)
                     {
                         moreInfo.PerInListMax = ToolHelper.getInt(sMoreArr[1], 0);

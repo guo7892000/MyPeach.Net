@@ -1482,7 +1482,11 @@ namespace org.breezee.MyPeachNet
                     return sSql.replace(mc.group(),entity.getReplaceKeyWithValue().ToString());
                 }
                 //3、返回参数化的SQL语句：LIKE的问题是在值的前或后或两边加上%解决
-                return sSql.replace(mc.group(), myPeachProp.getParamPrefix() + sKey + myPeachProp.getParamSuffix());
+                if (myPeachProp.getTargetSqlParamTypeEnum() == TargetSqlParamTypeEnum.NameParam)
+                {
+                    return sSql.replace(mc.group(), myPeachProp.getParamPrefix() + sKey + myPeachProp.getParamSuffix());
+                }
+                return sSql.replace(mc.group(), "?");
             }
             return sSql;//4、没有键时，直接返回原语句
         }
